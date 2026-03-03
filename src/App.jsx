@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Legend } from "recharts";
 import supabase from "./supabaseClient";
 
@@ -1568,7 +1568,7 @@ function LoginModal({ onClose, onLoginSuccess }) {
 }
 
 // ─── HOME PAGE ────────────────────────────────────────────────────────────────
-function HomePage({ onEnterPatient, onAbout, onOpenLogin }) {
+function HomePage({ user, onEnterPatient, onAbout, onOpenLogin, onSignOut, onGoClinician }) {
 
   const features = [
     { icon: "📊", title: "Longitudinal Tracking", desc: "Chart patient outcomes across validated assessments over time with rich visual graphs." },
@@ -1592,7 +1592,14 @@ function HomePage({ onEnterPatient, onAbout, onOpenLogin }) {
           <div style={{ display: "flex", gap: "2rem", alignItems: "center" }}>
             <button className="home-nav-link" onClick={onAbout}>About</button>
             <button className="home-nav-link">Research</button>
-            <button className="home-nav-link" onClick={onOpenLogin}>Sign In</button>
+            {user ? (
+              <>
+                <button className="home-nav-link" onClick={onGoClinician}>Dashboard</button>
+                <button className="home-nav-link" onClick={onSignOut}>Sign out</button>
+              </>
+            ) : (
+              <button className="home-nav-link" onClick={onOpenLogin}>Sign In</button>
+            )}
           </div>
         </nav>
 
@@ -1613,12 +1620,17 @@ function HomePage({ onEnterPatient, onAbout, onOpenLogin }) {
 
           <div className="home-actions">
             <button className="home-btn-primary" onClick={onOpenLogin}>
-              Clinician Portal →
+              {user ? "Go to Dashboard →" : "Clinician Portal →"}
             </button>
             <button className="home-btn-secondary" onClick={onEnterPatient}>
               Try Patient Demo
             </button>
           </div>
+          {user && (
+            <p style={{ marginTop: "1rem", fontSize: "0.85rem", color: "rgba(230,237,243,0.55)" }}>
+              Signed in as <span style={{ color: "#E6EDF3", fontWeight: 600 }}>{user.email}</span>
+            </p>
+          )}
 
           {/* Feature strip */}
           <div className="home-features">
@@ -1706,6 +1718,17 @@ export default function App() {
   const [patientSession, setPatientSession] = useState(null);
   const [user, setUser] = useState(null);
   const [showLogin, setShowLogin] = useState(false);
+  const [authReady, setAuthReady] = useState(false);
+
+  const screenRef = useRef(screen);
+  const patientSessionRef = useRef(patientSession);
+  const userRef = useRef(user);
+  const homePinnedRef = useRef(false);
+  const didAutoRouteRef = useRef(false);
+
+  useEffect(() => { screenRef.current = screen; }, [screen]);
+  useEffect(() => { patientSessionRef.current = patientSession; }, [patientSession]);
+  useEffect(() => { userRef.current = user; }, [user]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -1720,30 +1743,66 @@ export default function App() {
 
   const isPatient = screen === "patient";
 
+  const maybeAutoRouteToClinician = useCallback((u) => {
+    if (!u) return;
+    if (patientSessionRef.current) return;
+    if (homePinnedRef.current) return;
+    if (didAutoRouteRef.current) return;
+    if (screenRef.current !== "home" && screenRef.current !== "about") return;
+    didAutoRouteRef.current = true;
+    setScreen("clinician");
+  }, []);
+
   useEffect(() => {
     let mounted = true;
     (async () => {
       const { data } = await supabase.auth.getUser();
-      if (mounted) setUser(data?.user ?? null);
+      if (!mounted) return;
+      const u = data?.user ?? null;
+      setUser(u);
+      setAuthReady(true);
+      setShowLogin(false);
+      maybeAutoRouteToClinician(u);
     })();
+
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-      if (!session?.user && screen === "clinician") {
-        setScreen("home");
+      const u = session?.user ?? null;
+      setUser(u);
+      setAuthReady(true);
+      if (u) {
+        setShowLogin(false);
+        maybeAutoRouteToClinician(u);
+      } else {
+        didAutoRouteRef.current = false;
+        if (screenRef.current === "clinician") setScreen("home");
       }
     });
+
     return () => {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, [screen]);
+  }, [maybeAutoRouteToClinician]);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     setUser(null);
+    setShowLogin(false);
+    homePinnedRef.current = false;
+    didAutoRouteRef.current = false;
     if (screen === "clinician") setScreen("home");
+  };
+
+  const openLoginOrGoClinician = () => {
+    if (userRef.current) {
+      homePinnedRef.current = false;
+      setShowLogin(false);
+      setScreen("clinician");
+      return;
+    }
+    setShowLogin(true);
   };
 
   if (screen === "home") {
@@ -1751,16 +1810,24 @@ export default function App() {
       <>
         <style>{css}</style>
         <HomePage
+          user={user}
           onEnterPatient={() => setScreen("patient")}
           onAbout={() => setScreen("about")}
-          onOpenLogin={() => setShowLogin(true)}
+          onOpenLogin={openLoginOrGoClinician}
+          onSignOut={handleSignOut}
+          onGoClinician={() => {
+            homePinnedRef.current = false;
+            setShowLogin(false);
+            setScreen("clinician");
+          }}
         />
-        {showLogin && !patientSession && (
+        {showLogin && authReady && !user && !patientSession && (
           <LoginModal
             onClose={() => setShowLogin(false)}
             onLoginSuccess={(u) => {
               setUser(u);
               setShowLogin(false);
+              didAutoRouteRef.current = true;
               setScreen("clinician");
             }}
           />
@@ -1774,12 +1841,13 @@ export default function App() {
       <>
         <style>{css}</style>
         <AboutPage onBack={() => setScreen("home")} />
-        {showLogin && !patientSession && (
+        {showLogin && authReady && !user && !patientSession && (
           <LoginModal
             onClose={() => setShowLogin(false)}
             onLoginSuccess={(u) => {
               setUser(u);
               setShowLogin(false);
+              didAutoRouteRef.current = true;
               setScreen("clinician");
             }}
           />
@@ -1793,7 +1861,14 @@ export default function App() {
       <style>{css}</style>
       <div className={`app${isPatient ? " patient-theme" : ""}`}>
         <nav className="nav">
-          <button onClick={() => setScreen("home")} style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}>
+          <button
+            onClick={() => {
+              homePinnedRef.current = true;
+              setShowLogin(false);
+              setScreen("home");
+            }}
+            style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}
+          >
             <div className="logo">Psy<span>Track</span></div>
           </button>
           <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
@@ -1802,8 +1877,13 @@ export default function App() {
                 <button
                   className={`nav-tab${screen === "clinician" ? " active" : ""}`}
                   onClick={() => {
-                    if (user) setScreen("clinician");
-                    else setShowLogin(true);
+                    if (user) {
+                      homePinnedRef.current = false;
+                      setShowLogin(false);
+                      setScreen("clinician");
+                    } else {
+                      setShowLogin(true);
+                    }
                   }}
                 >
                   Clinician Portal
@@ -1830,12 +1910,13 @@ export default function App() {
               : <PatientPortalDemo />
           )}
         </main>
-        {showLogin && !patientSession && (
+        {showLogin && authReady && !user && !patientSession && (
           <LoginModal
             onClose={() => setShowLogin(false)}
             onLoginSuccess={(u) => {
               setUser(u);
               setShowLogin(false);
+              didAutoRouteRef.current = true;
               setScreen("clinician");
             }}
           />
