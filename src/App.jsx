@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Legend } from "recharts";
+import supabase from "./supabaseClient";
 
 // ─── STORAGE HELPERS ────────────────────────────────────────────────────────
 const load = async (key, shared = false) => {
@@ -1495,37 +1496,79 @@ function ClinicianDashboard() {
 }
 
 // ─── LOGIN MODAL ─────────────────────────────────────────────────────────────
-function LoginModal({ onClose, onEnter }) {
+function LoginModal({ onClose, onLoginSuccess }) {
   const [email, setEmail] = useState("");
   const [pass, setPass] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleSubmit = async () => {
+    if (!email || !pass) return;
+    setLoading(true);
+    setError("");
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password: pass });
+    if (error) {
+      setError(error.message || "Unable to sign in. Please check your credentials.");
+    } else if (data?.user) {
+      onLoginSuccess(data.user);
+    }
+    setLoading(false);
+  };
+
   return (
     <div className="login-modal-bg" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="login-modal">
         <h2 className="login-title">Welcome back</h2>
         <p className="login-sub">Sign in to your PsyTrack clinician portal</p>
-        <input className="login-input" type="email" placeholder="Email address"
-          value={email} onChange={e => setEmail(e.target.value)} />
-        <input className="login-input" type="password" placeholder="Password"
-          value={pass} onChange={e => setPass(e.target.value)} />
-        <button className="home-btn-primary" style={{ width: "100%", justifyContent: "center", marginTop: "0.5rem", borderRadius: "10px" }}
-          onClick={() => onEnter("clinician")}>
-          Sign In →
+        <input
+          className="login-input"
+          type="email"
+          placeholder="Email address"
+          value={email}
+          onChange={e => setEmail(e.target.value)}
+        />
+        <input
+          className="login-input"
+          type="password"
+          placeholder="Password"
+          value={pass}
+          onChange={e => setPass(e.target.value)}
+        />
+        {error && (
+          <p style={{ color: "#FCA5A5", fontSize: "0.8rem", marginTop: "0.25rem", marginBottom: "0.5rem" }}>
+            {error}
+          </p>
+        )}
+        <button
+          className="home-btn-primary"
+          style={{ width: "100%", justifyContent: "center", marginTop: "0.5rem", borderRadius: "10px" }}
+          disabled={!email || !pass || loading}
+          onClick={handleSubmit}
+        >
+          {loading ? "Signing in…" : "Sign In →"}
         </button>
-        <button onClick={onClose} style={{ width: "100%", marginTop: "0.75rem", background: "none", border: "none",
-          color: "rgba(255,255,255,0.3)", cursor: "pointer", fontSize: "0.82rem", fontFamily: "var(--font-body)" }}>
+        <button
+          onClick={onClose}
+          style={{
+            width: "100%",
+            marginTop: "0.75rem",
+            background: "none",
+            border: "none",
+            color: "rgba(255,255,255,0.3)",
+            cursor: "pointer",
+            fontSize: "0.82rem",
+            fontFamily: "var(--font-body)",
+          }}
+        >
           Cancel
         </button>
-        <p style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.2)", textAlign: "center", marginTop: "1.25rem", lineHeight: 1.6 }}>
-          This is a demo environment. Any credentials will work.
-        </p>
       </div>
     </div>
   );
 }
 
 // ─── HOME PAGE ────────────────────────────────────────────────────────────────
-function HomePage({ onEnter, onAbout }) {
-  const [showLogin, setShowLogin] = useState(false);
+function HomePage({ onEnterPatient, onAbout, onOpenLogin }) {
 
   const features = [
     { icon: "📊", title: "Longitudinal Tracking", desc: "Chart patient outcomes across validated assessments over time with rich visual graphs." },
@@ -1549,7 +1592,7 @@ function HomePage({ onEnter, onAbout }) {
           <div style={{ display: "flex", gap: "2rem", alignItems: "center" }}>
             <button className="home-nav-link" onClick={onAbout}>About</button>
             <button className="home-nav-link">Research</button>
-            <button className="home-nav-link" onClick={() => setShowLogin(true)}>Sign In</button>
+            <button className="home-nav-link" onClick={onOpenLogin}>Sign In</button>
           </div>
         </nav>
 
@@ -1569,10 +1612,10 @@ function HomePage({ onEnter, onAbout }) {
           </p>
 
           <div className="home-actions">
-            <button className="home-btn-primary" onClick={() => setShowLogin(true)}>
+            <button className="home-btn-primary" onClick={onOpenLogin}>
               Clinician Portal →
             </button>
-            <button className="home-btn-secondary" onClick={() => onEnter("patient")}>
+            <button className="home-btn-secondary" onClick={onEnterPatient}>
               Try Patient Demo
             </button>
           </div>
@@ -1594,7 +1637,6 @@ function HomePage({ onEnter, onAbout }) {
         </footer>
       </div>
 
-      {showLogin && <LoginModal onClose={() => setShowLogin(false)} onEnter={(v) => { setShowLogin(false); onEnter(v); }} />}
     </>
   );
 }
@@ -1662,6 +1704,8 @@ function AboutPage({ onBack }) {
 export default function App() {
   const [screen, setScreen] = useState("home"); // "home" | "about" | "clinician" | "patient"
   const [patientSession, setPatientSession] = useState(null);
+  const [user, setUser] = useState(null);
+  const [showLogin, setShowLogin] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -1676,11 +1720,51 @@ export default function App() {
 
   const isPatient = screen === "patient";
 
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      const { data } = await supabase.auth.getUser();
+      if (mounted) setUser(data?.user ?? null);
+    })();
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+      if (!session?.user && screen === "clinician") {
+        setScreen("home");
+      }
+    });
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, [screen]);
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    setUser(null);
+    if (screen === "clinician") setScreen("home");
+  };
+
   if (screen === "home") {
     return (
       <>
         <style>{css}</style>
-        <HomePage onEnter={(v) => setScreen(v)} onAbout={() => setScreen("about")} />
+        <HomePage
+          onEnterPatient={() => setScreen("patient")}
+          onAbout={() => setScreen("about")}
+          onOpenLogin={() => setShowLogin(true)}
+        />
+        {showLogin && !patientSession && (
+          <LoginModal
+            onClose={() => setShowLogin(false)}
+            onLoginSuccess={(u) => {
+              setUser(u);
+              setShowLogin(false);
+              setScreen("clinician");
+            }}
+          />
+        )}
       </>
     );
   }
@@ -1690,6 +1774,16 @@ export default function App() {
       <>
         <style>{css}</style>
         <AboutPage onBack={() => setScreen("home")} />
+        {showLogin && !patientSession && (
+          <LoginModal
+            onClose={() => setShowLogin(false)}
+            onLoginSuccess={(u) => {
+              setUser(u);
+              setShowLogin(false);
+              setScreen("clinician");
+            }}
+          />
+        )}
       </>
     );
   }
@@ -1702,27 +1796,50 @@ export default function App() {
           <button onClick={() => setScreen("home")} style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}>
             <div className="logo">Psy<span>Track</span></div>
           </button>
-          {!patientSession && (
-            <div className="nav-tabs">
-              <button className={`nav-tab${screen === "clinician" ? " active" : ""}`} onClick={() => setScreen("clinician")}>
-                Clinician Portal
+          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+            {!patientSession && (
+              <div className="nav-tabs">
+                <button
+                  className={`nav-tab${screen === "clinician" ? " active" : ""}`}
+                  onClick={() => {
+                    if (user) setScreen("clinician");
+                    else setShowLogin(true);
+                  }}
+                >
+                  Clinician Portal
+                </button>
+                <button className={`nav-tab${screen === "patient" ? " active" : ""}`} onClick={() => setScreen("patient")}>
+                  Patient Demo
+                </button>
+              </div>
+            )}
+            {patientSession && <span style={{ color: "var(--muted)", fontSize: "0.82rem" }}>Patient Assessment</span>}
+            {user && !patientSession && (
+              <button className="btn btn-secondary btn-sm" onClick={handleSignOut}>
+                Sign out
               </button>
-              <button className={`nav-tab${screen === "patient" ? " active" : ""}`} onClick={() => setScreen("patient")}>
-                Patient Demo
-              </button>
-            </div>
-          )}
-          {patientSession && <span style={{ color: "var(--muted)", fontSize: "0.82rem" }}>Patient Assessment</span>}
+            )}
+          </div>
         </nav>
 
         <main className="main">
-          {screen === "clinician" && <ClinicianDashboard />}
+          {screen === "clinician" && (user ? <ClinicianDashboard /> : null)}
           {screen === "patient" && (
             patientSession
               ? <PatientPortal sessionId={patientSession} />
               : <PatientPortalDemo />
           )}
         </main>
+        {showLogin && !patientSession && (
+          <LoginModal
+            onClose={() => setShowLogin(false)}
+            onLoginSuccess={(u) => {
+              setUser(u);
+              setShowLogin(false);
+              setScreen("clinician");
+            }}
+          />
+        )}
       </div>
     </>
   );
