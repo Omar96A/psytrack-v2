@@ -789,21 +789,129 @@ const SAMPLE_PATIENTS = [
   },
 ];
 
+let didSeedSupabaseDemoResults = false;
+
 const seedDemoData = async () => {
   const existing = await load("patients", true) || [];
   const existingIds = new Set(existing.map(p => p.id));
   // Only seed if sample patients are missing
-  const needsSeed = SAMPLE_PATIENTS.some(p => !existingIds.has(p.id));
-  if (!needsSeed) return;
+  const needsSeedPatients = SAMPLE_PATIENTS.some(p => !existingIds.has(p.id));
+  if (needsSeedPatients) {
+    const allPatients = [
+      ...existing,
+      ...SAMPLE_PATIENTS
+        .filter(p => !existingIds.has(p.id))
+        .map(({ id, name, email, createdAt }) => ({ id, name, email, createdAt })),
+    ];
+    await save("patients", allPatients, true);
+  }
 
-  const allPatients = [...existing, ...SAMPLE_PATIENTS.filter(p => !existingIds.has(p.id)).map(({ id, name, email, createdAt }) => ({ id, name, email, createdAt }))];
-  await save("patients", allPatients, true);
+  // Seed demo results into Supabase (id, patient_id, data) if missing.
+  if (didSeedSupabaseDemoResults) return;
+  try {
+    const sampleIds = SAMPLE_PATIENTS.map(p => p.id);
+    const { data: existingRows, error: existingErr } = await supabase
+      .from("results")
+      .select("id")
+      .in("patient_id", sampleIds);
+    if (existingErr) throw existingErr;
 
-  for (const sp of SAMPLE_PATIENTS) {
-    if (existingIds.has(sp.id)) continue;
-    await save(`results:${sp.id}`, sp.history, true);
+    const existingResultIds = new Set((existingRows || []).map(r => r.id));
+    const toUpsert = [];
+
+    for (const sp of SAMPLE_PATIENTS) {
+      for (const entry of sp.history || []) {
+        if (entry?.id && !existingResultIds.has(entry.id)) {
+          toUpsert.push({ id: entry.id, patient_id: sp.id, data: entry });
+        }
+      }
+    }
+
+    if (toUpsert.length > 0) {
+      const { error } = await supabase
+        .from("results")
+        .upsert(toUpsert, { onConflict: "id", ignoreDuplicates: true });
+      if (error) throw error;
+    }
+
+    didSeedSupabaseDemoResults = true;
+  } catch {
+    // If seeding fails (e.g. RLS), keep the app usable; we'll retry on next refresh.
   }
 };
+
+// ─── MANUAL SUPABASE SEED HELPER ───────────────────────────────────────────────
+async function forceSeedToSupabase() {
+  try {
+    // eslint-disable-next-line no-console
+    console.log("[forceSeedToSupabase] Starting demo seed into Supabase `results`…");
+    const sampleIds = SAMPLE_PATIENTS.map(p => p.id);
+
+    const { data: existingRows, error: existingErr } = await supabase
+      .from("results")
+      .select("id, patient_id")
+      .in("patient_id", sampleIds);
+
+    if (existingErr) {
+      // eslint-disable-next-line no-console
+      console.error("[forceSeedToSupabase] Failed to fetch existing results:", existingErr);
+      throw existingErr;
+    }
+
+    const existingResultIds = new Set((existingRows || []).map(r => r.id));
+    const toUpsert = [];
+
+    for (const sp of SAMPLE_PATIENTS) {
+      for (const entry of sp.history || []) {
+        if (!entry?.id) continue;
+        if (existingResultIds.has(entry.id)) {
+          // eslint-disable-next-line no-console
+          console.log(
+            `[forceSeedToSupabase] Skipping existing result id=${entry.id} patient_id=${sp.id}`
+          );
+          continue;
+        }
+        toUpsert.push({ id: entry.id, patient_id: sp.id, data: entry });
+      }
+    }
+
+    if (toUpsert.length === 0) {
+      // eslint-disable-next-line no-console
+      console.log("[forceSeedToSupabase] No new demo results to insert. Done.");
+      return;
+    }
+
+    // eslint-disable-next-line no-console
+    console.log(
+      `[forceSeedToSupabase] Inserting ${toUpsert.length} demo results into Supabase…`
+    );
+
+    const { error: upsertErr } = await supabase
+      .from("results")
+      .upsert(toUpsert, { onConflict: "id", ignoreDuplicates: true });
+
+    if (upsertErr) {
+      // eslint-disable-next-line no-console
+      console.error("[forceSeedToSupabase] Upsert failed:", upsertErr);
+      throw upsertErr;
+    }
+
+    // eslint-disable-next-line no-console
+    console.log(
+      "[forceSeedToSupabase] Demo results successfully seeded into Supabase `results`."
+    );
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.error("[forceSeedToSupabase] Error while seeding:", e);
+  }
+}
+
+if (typeof window !== "undefined") {
+  // eslint-disable-next-line no-console
+  console.log("[forceSeedToSupabase] Exposed on window as window.forceSeedToSupabase()");
+  // eslint-disable-next-line no-undef
+  window.forceSeedToSupabase = forceSeedToSupabase;
+}
 
 // ─── ASSESSMENT FORM ─────────────────────────────────────────────────────────
 function AssessmentForm({ def, onComplete, onSkip }) {
@@ -860,17 +968,42 @@ function PatientPortal({ sessionId, onDone }) {
   const [results, setResults] = useState({});
   const [done, setDone] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
 
   useEffect(() => {
     (async () => {
-      const s = await load(`session:${sessionId}`, true);
-      setSession(s);
-      setLoading(false);
+      try {
+        setLoading(true);
+        setLoadError("");
+        const { data, error } = await supabase
+          .from("sessions")
+          .select("data")
+          .eq("id", sessionId)
+          .maybeSingle();
+        if (error) throw error;
+        setSession(data?.data ?? null);
+      } catch (e) {
+        setSession(null);
+        setLoadError(e?.message || "Unable to load session.");
+      } finally {
+        setLoading(false);
+      }
     })();
   }, [sessionId]);
 
   if (loading) return <div style={{ textAlign: "center", padding: "4rem", color: "var(--muted)" }}>Loading your assessment…</div>;
-  if (!session) return <div style={{ textAlign: "center", padding: "4rem", color: "var(--danger)" }}>Session not found or expired.</div>;
+  if (!session) {
+    return (
+      <div style={{ textAlign: "center", padding: "4rem", color: "var(--danger)" }}>
+        Session not found or expired.
+        {loadError && (
+          <div style={{ marginTop: "0.75rem", fontSize: "0.8rem", color: "var(--muted)" }}>
+            {loadError}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   const queue = session.assessments;
   const current = queue[step];
@@ -950,14 +1083,16 @@ function PatientPortal({ sessionId, onDone }) {
         answers: Object.fromEntries(Object.entries(newResults).map(([k, v]) => [k, v.answers])),
         interventions: [],
       };
-      // Append to patient results
-      const existing = await load(`results:${session.patientId}`, true) || [];
-      existing.push(resultObj);
-      await save(`results:${session.patientId}`, existing, true);
+      // Persist result in Supabase
+      await supabase.from("results").upsert({
+        id: resultObj.id,
+        patient_id: session.patientId,
+        data: resultObj,
+      });
 
       // Mark session done
       const updSession = { ...session, completed: true, completedAt: Date.now() };
-      await save(`session:${sessionId}`, updSession, true);
+      await supabase.from("sessions").update({ data: updSession }).eq("id", sessionId);
 
       // Check for follow-up triggers
       const phq9Score = newResults.phq9?.total ?? 0;
@@ -1068,8 +1203,16 @@ function PatientDetail({ patient, onBack }) {
 
   useEffect(() => {
     (async () => {
-      const r = await load(`results:${patient.id}`, true) || [];
-      setResults(r.sort((a, b) => a.completedAt - b.completedAt));
+      const { data, error } = await supabase
+        .from("results")
+        .select("data")
+        .eq("patient_id", patient.id);
+      const rows = (data || []).map(r => r.data || {});
+      if (!error) {
+        setResults(rows.sort((a, b) => (a.completedAt || 0) - (b.completedAt || 0)));
+      } else {
+        setResults([]);
+      }
       setLoading(false);
     })();
   }, [patient.id]);
@@ -1085,13 +1228,14 @@ function PatientDetail({ patient, onBack }) {
 
   const addIntervention = async (resultId, type, note) => {
     const entry = { id: uid(), type, note, createdAt: Date.now() };
-    const updated = results.map(r => r.id === resultId
-      ? { ...r, interventions: [...(r.interventions || []), entry] } : r);
+    const updated = results.map(r =>
+      r.id === resultId ? { ...r, interventions: [...(r.interventions || []), entry] } : r
+    );
     setResults(updated);
-    const allResults = await load(`results:${patient.id}`, true) || [];
-    const saved = allResults.map(r => r.id === resultId
-      ? { ...r, interventions: [...(r.interventions || []), entry] } : r);
-    await save(`results:${patient.id}`, saved, true);
+    const target = updated.find(r => r.id === resultId);
+    if (target) {
+      await supabase.from("results").update({ data: target }).eq("id", resultId);
+    }
   };
 
   // Alerts
@@ -1244,9 +1388,11 @@ function NewPatientModal({ onClose, onCreated }) {
   const [email, setEmail] = useState("");
   const [saving, setSaving] = useState(false);
   const [link, setLink] = useState(null);
+  const [err, setErr] = useState("");
 
   const create = async () => {
     setSaving(true);
+    setErr("");
     const patient = { id: uid(), name, email, createdAt: Date.now() };
     const patients = await load("patients", true) || [];
     patients.push(patient);
@@ -1256,7 +1402,12 @@ function NewPatientModal({ onClose, onCreated }) {
     const sessionId = uid();
     const session = { id: sessionId, patientId: patient.id, patientName: name,
       assessments: ["gad7", "phq9", "assist", "auditc"], createdAt: Date.now(), completed: false };
-    await save(`session:${sessionId}`, session, true);
+    const { error } = await supabase.from("sessions").upsert({ id: sessionId, data: session });
+    if (error) {
+      setSaving(false);
+      setErr(error.message || "Failed to create session.");
+      return;
+    }
 
     const url = `${window.location.origin}${window.location.pathname}?patient=${sessionId}`;
     setLink(url);
@@ -1268,6 +1419,7 @@ function NewPatientModal({ onClose, onCreated }) {
     <div className="modal-bg" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="modal">
         <h3 className="modal-title">New Patient</h3>
+        {err && <div className="alert alert-danger" style={{ marginBottom: "1rem" }}>{err}</div>}
         {!link ? (
           <>
             <div className="form-group">
@@ -1312,20 +1464,31 @@ function NewPatientModal({ onClose, onCreated }) {
 function SendAssessmentModal({ patient, onClose }) {
   const [selected, setSelected] = useState(["gad7"]);
   const [link, setLink] = useState(null);
+  const [err, setErr] = useState("");
+  const [generating, setGenerating] = useState(false);
   const toggleA = (id) => setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
 
   const generate = async () => {
+    setGenerating(true);
+    setErr("");
     const sessionId = uid();
     const session = { id: sessionId, patientId: patient.id, patientName: patient.name,
       assessments: selected, createdAt: Date.now(), completed: false };
-    await save(`session:${sessionId}`, session, true);
+    const { error } = await supabase.from("sessions").upsert({ id: sessionId, data: session });
+    if (error) {
+      setGenerating(false);
+      setErr(error.message || "Failed to create session.");
+      return;
+    }
     setLink(`${window.location.origin}${window.location.pathname}?patient=${sessionId}`);
+    setGenerating(false);
   };
 
   return (
     <div className="modal-bg" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="modal">
         <h3 className="modal-title">Send Assessment to {patient.name}</h3>
+        {err && <div className="alert alert-danger" style={{ marginBottom: "1rem" }}>{err}</div>}
         {!link ? (
           <>
             <p style={{ color: "var(--muted)", fontSize: "0.85rem", marginBottom: "1.5rem" }}>Select assessments to include:</p>
@@ -1339,7 +1502,9 @@ function SendAssessmentModal({ patient, onClose }) {
             </div>
             <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end" }}>
               <button className="btn btn-secondary" onClick={onClose}>Cancel</button>
-              <button className="btn btn-primary" disabled={selected.length === 0} onClick={generate}>Generate Link</button>
+              <button className="btn btn-primary" disabled={selected.length === 0 || generating} onClick={generate}>
+                {generating ? "Generating…" : "Generate Link"}
+              </button>
             </div>
           </>
         ) : (
@@ -1383,8 +1548,16 @@ function ClinicianDashboard() {
     (async () => {
       const out = {};
       for (const p of patients) {
-        const r = await load(`results:${p.id}`, true) || [];
-        if (r.length) out[p.id] = r[r.length - 1];
+        const { data, error } = await supabase
+          .from("results")
+          .select("data")
+          .eq("patient_id", p.id);
+        if (!error && data && data.length) {
+          const list = data.map(row => row.data || {}).sort(
+            (a, b) => (a.completedAt || 0) - (b.completedAt || 0)
+          );
+          out[p.id] = list[list.length - 1];
+        }
       }
       setAllResults(out);
     })();
