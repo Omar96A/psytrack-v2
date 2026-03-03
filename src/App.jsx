@@ -3,10 +3,13 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 
 // ─── STORAGE HELPERS ────────────────────────────────────────────────────────
 const load = async (key, shared = false) => {
-  try { const r = await window.storage.get(key, shared); return r ? JSON.parse(r.value) : null; } catch { return null; }
+  try {
+    const raw = localStorage.getItem(key);
+    return raw != null ? JSON.parse(raw) : null;
+  } catch { return null; }
 };
 const save = async (key, val, shared = false) => {
-  try { await window.storage.set(key, JSON.stringify(val), shared); } catch {}
+  try { localStorage.setItem(key, JSON.stringify(val)); } catch {}
 };
 
 // ─── ASSESSMENT DEFINITIONS ──────────────────────────────────────────────────
@@ -162,8 +165,9 @@ const css = `
     --font-body: 'DM Sans', sans-serif;
   }
 
-  body { background: var(--bg); color: var(--text); font-family: var(--font-body); min-height: 100vh; transition: background 0.3s; }
-  .app { min-height: 100vh; display: flex; flex-direction: column; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font-body); min-height: 100vh; transition: background 0.3s;
+    display: flex; flex-direction: column; align-items: center; }
+  .app { min-height: 100vh; display: flex; flex-direction: column; width: 100%; max-width: 1280px; margin: 0 auto; }
 
   /* NAV */
   .nav { display: flex; align-items: center; justify-content: space-between; padding: 0.875rem 2rem;
@@ -395,7 +399,7 @@ const css = `
   }
   .home-wrap {
     position: relative; z-index: 1; min-height: 100vh;
-    display: flex; flex-direction: column;
+    display: flex; flex-direction: column; width: 100%; max-width: 1280px; margin: 0 auto;
   }
   .home-nav {
     display: flex; align-items: center; justify-content: space-between;
