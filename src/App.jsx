@@ -507,6 +507,78 @@ const css = `
     animation: fadeIn 1s ease 0.8s both;
   }
 
+  /* ABOUT PAGE (shares home background) */
+  .about-shell {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 4rem 2rem 6rem;
+    text-align: center;
+  }
+  .about-title {
+    font-family: var(--font-display);
+    font-size: clamp(2.2rem, 4vw, 3.2rem);
+    letter-spacing: -1px;
+    margin-bottom: 0.75rem;
+    color: rgba(230,237,243,0.95);
+  }
+  .about-sub {
+    font-size: 1.05rem;
+    color: rgba(230,237,243,0.55);
+    line-height: 1.8;
+    max-width: 760px;
+    margin: 0 auto 2.25rem;
+  }
+  .about-grid {
+    width: 100%;
+    max-width: 900px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    margin: 0 auto;
+  }
+  .about-card {
+    background: rgba(5,8,15,0.7);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 16px;
+    padding: 1.25rem 1.25rem;
+    text-align: left;
+    backdrop-filter: blur(12px);
+  }
+  .about-card h3 {
+    font-size: 0.95rem;
+    color: rgba(255,255,255,0.85);
+    margin-bottom: 0.4rem;
+    font-weight: 700;
+  }
+  .about-card p {
+    font-size: 0.82rem;
+    color: rgba(255,255,255,0.35);
+    line-height: 1.7;
+  }
+  .about-actions { display: flex; justify-content: center; gap: 1rem; margin-top: 2.25rem; flex-wrap: wrap; }
+  .about-back {
+    background: rgba(255,255,255,0.06);
+    color: rgba(255,255,255,0.75);
+    border: 1px solid rgba(255,255,255,0.12);
+    font-weight: 600;
+    padding: 0.85rem 2rem;
+    border-radius: 100px;
+    font-size: 0.95rem;
+    cursor: pointer;
+    font-family: var(--font-body);
+    transition: all 0.25s;
+    backdrop-filter: blur(8px);
+  }
+  .about-back:hover {
+    background: rgba(255,255,255,0.1);
+    border-color: rgba(255,255,255,0.22);
+    color: #fff;
+    transform: translateY(-2px);
+  }
+
   /* LOGIN MODAL */
   .login-modal-bg {
     position: fixed; inset: 0; z-index: 300;
@@ -539,6 +611,7 @@ const css = `
     .home-features { grid-template-columns: 1fr; }
     .home-actions { flex-direction: column; width: 100%; max-width: 320px; }
     .home-btn-primary, .home-btn-secondary { width: 100%; justify-content: center; }
+    .about-grid { grid-template-columns: 1fr; }
     .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
     .main { padding: 1rem; }
     .nav { padding: 0.875rem 1rem; }
@@ -1451,7 +1524,7 @@ function LoginModal({ onClose, onEnter }) {
 }
 
 // ─── HOME PAGE ────────────────────────────────────────────────────────────────
-function HomePage({ onEnter }) {
+function HomePage({ onEnter, onAbout }) {
   const [showLogin, setShowLogin] = useState(false);
 
   const features = [
@@ -1474,7 +1547,7 @@ function HomePage({ onEnter }) {
         <nav className="home-nav">
           <div className="home-logo">PsyTrack</div>
           <div style={{ display: "flex", gap: "2rem", alignItems: "center" }}>
-            <button className="home-nav-link">About</button>
+            <button className="home-nav-link" onClick={onAbout}>About</button>
             <button className="home-nav-link">Research</button>
             <button className="home-nav-link" onClick={() => setShowLogin(true)}>Sign In</button>
           </div>
@@ -1526,9 +1599,68 @@ function HomePage({ onEnter }) {
   );
 }
 
+function AboutPage({ onBack }) {
+  const pillars = [
+    { title: "Clinically grounded", desc: "Built around validated scales and longitudinal monitoring so clinicians can act on trends, not snapshots." },
+    { title: "Fast to use", desc: "Designed for real workflows with clear dashboards, simple patient onboarding, and minimal clicks." },
+    { title: "Privacy-minded", desc: "Local-first behavior in a normal browser, with a structure that’s ready to evolve into a secure production stack." },
+  ];
+
+  return (
+    <>
+      <div className="home-bg">
+        <div className="home-orb home-orb-1" />
+        <div className="home-orb home-orb-2" />
+        <div className="home-orb home-orb-3" />
+        <div className="home-noise" />
+      </div>
+
+      <div className="home-wrap">
+        <nav className="home-nav">
+          <button
+            className="home-logo"
+            onClick={onBack}
+            style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}
+          >
+            PsyTrack
+          </button>
+          <div style={{ display: "flex", gap: "2rem", alignItems: "center" }}>
+            <button className="home-nav-link" onClick={onBack}>Home</button>
+          </div>
+        </nav>
+
+        <section className="about-shell">
+          <div className="about-title">About PsyTrack</div>
+          <p className="about-sub">
+            PsyTrack is a lightweight outcome-monitoring experience that helps translate validated assessment data into clear,
+            trackable clinical insight over time.
+          </p>
+
+          <div className="about-grid">
+            {pillars.map((p) => (
+              <div className="about-card" key={p.title}>
+                <h3>{p.title}</h3>
+                <p>{p.desc}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="about-actions">
+            <button className="about-back" onClick={onBack}>← Back to home</button>
+          </div>
+        </section>
+
+        <footer className="home-footer">
+          © 2026 PsyTrack · Built for psychiatric practice · Not a substitute for clinical judgment
+        </footer>
+      </div>
+    </>
+  );
+}
+
 // ─── APP ROOT ─────────────────────────────────────────────────────────────────
 export default function App() {
-  const [screen, setScreen] = useState("home"); // "home" | "clinician" | "patient"
+  const [screen, setScreen] = useState("home"); // "home" | "about" | "clinician" | "patient"
   const [patientSession, setPatientSession] = useState(null);
 
   useEffect(() => {
@@ -1538,7 +1670,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    document.body.style.background = screen === "home" ? "#05080F"
+    document.body.style.background = (screen === "home" || screen === "about") ? "#05080F"
       : screen === "patient" ? "#F8FAFC" : "#0D1117";
   }, [screen]);
 
@@ -1548,7 +1680,16 @@ export default function App() {
     return (
       <>
         <style>{css}</style>
-        <HomePage onEnter={(v) => setScreen(v)} />
+        <HomePage onEnter={(v) => setScreen(v)} onAbout={() => setScreen("about")} />
+      </>
+    );
+  }
+
+  if (screen === "about") {
+    return (
+      <>
+        <style>{css}</style>
+        <AboutPage onBack={() => setScreen("home")} />
       </>
     );
   }
