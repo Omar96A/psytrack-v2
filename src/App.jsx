@@ -792,18 +792,26 @@ const SAMPLE_PATIENTS = [
 let didSeedSupabaseDemoResults = false;
 
 const seedDemoData = async () => {
-  const existing = await load("patients", true) || [];
-  const existingIds = new Set(existing.map(p => p.id));
-  // Only seed if sample patients are missing
-  const needsSeedPatients = SAMPLE_PATIENTS.some(p => !existingIds.has(p.id));
-  if (needsSeedPatients) {
-    const allPatients = [
-      ...existing,
-      ...SAMPLE_PATIENTS
-        .filter(p => !existingIds.has(p.id))
-        .map(({ id, name, email, createdAt }) => ({ id, name, email, createdAt })),
-    ];
-    await save("patients", allPatients, true);
+  // Seed sample patients into Supabase `patients` table if missing.
+  try {
+    const { data: existingPatients, error: patientsErr } = await supabase
+      .from("patients")
+      .select("id");
+    if (patientsErr) throw patientsErr;
+    const existingIds = new Set((existingPatients || []).map(p => p.id));
+    const toInsert = SAMPLE_PATIENTS
+      .filter(p => !existingIds.has(p.id))
+      .map(({ id, name, email, createdAt }) => ({
+        id,
+        name,
+        email,
+        created_at: new Date(createdAt).toISOString(),
+      }));
+    if (toInsert.length > 0) {
+      await supabase.from("patients").insert(toInsert);
+    }
+  } catch {
+    // If seeding patients fails, continue; app will still function for existing rows.
   }
 
   // Seed demo results into Supabase (id, patient_id, data) if missing.
@@ -1394,18 +1402,26 @@ function NewPatientModal({ onClose, onCreated }) {
     setSaving(true);
     setErr("");
     const patient = { id: uid(), name, email, createdAt: Date.now() };
-    const patients = await load("patients", true) || [];
-    patients.push(patient);
-    await save("patients", patients, true);
+    const { error: patientErr } = await supabase.from("patients").insert({
+      id: patient.id,
+      name: patient.name,
+      email: patient.email,
+      created_at: new Date(patient.createdAt).toISOString(),
+    });
+    if (patientErr) {
+      setSaving(false);
+      setErr(patientErr.message || "Failed to create patient.");
+      return;
+    }
 
     // Create initial session
     const sessionId = uid();
     const session = { id: sessionId, patientId: patient.id, patientName: name,
       assessments: ["gad7", "phq9", "assist", "auditc"], createdAt: Date.now(), completed: false };
-    const { error } = await supabase.from("sessions").upsert({ id: sessionId, data: session });
-    if (error) {
+    const { error: sessionErr } = await supabase.from("sessions").upsert({ id: sessionId, data: session });
+    if (sessionErr) {
       setSaving(false);
-      setErr(error.message || "Failed to create session.");
+      setErr(sessionErr.message || "Failed to create session.");
       return;
     }
 
@@ -1533,8 +1549,21 @@ function ClinicianDashboard() {
 
   const refresh = useCallback(async () => {
     await seedDemoData();
-    const p = await load("patients", true) || [];
-    setPatients(p);
+    const { data, error } = await supabase
+      .from("patients")
+      .select("id, name, email, created_at")
+      .order("created_at", { ascending: true });
+    if (!error && data) {
+      const mapped = data.map(row => ({
+        id: row.id,
+        name: row.name,
+        email: row.email,
+        createdAt: row.created_at ? new Date(row.created_at).getTime() : Date.now(),
+      }));
+      setPatients(mapped);
+    } else {
+      setPatients([]);
+    }
     setLoading(false);
   }, []);
 
