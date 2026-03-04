@@ -647,35 +647,42 @@ const makeTrend = (start, end, steps, noise = 1.5) => {
 const DAY = 86400000;
 const now = Date.now();
 
+// Spacing between visits: 4–6 weeks (use 5 weeks)
+const VISIT_STEP_DAYS = 35;
+
 const SAMPLE_PATIENTS = [
   {
     id: "sp_001", name: "Margaret Chen", email: "m.chen@email.com",
     createdAt: now - 5 * 365 * DAY,
     note: "5-year longitudinal case: MDD with GAD. Initial severe presentation, gradual improvement with medication + therapy, partial relapse at 3 years, stabilization.",
     history: (() => {
+      const n = 40;
       const entries = [];
-      // 5 years of data, roughly every 6-8 weeks = ~35 data points
-      const phq9Trend  = makeTrend(22, 8,  35, 2);
-      const gad7Trend  = makeTrend(18, 6,  35, 2);
-      const qidsTrend  = makeTrend(19, 7,  35, 2);
-      // relapse bump around index 20-24
-      [20,21,22,23,24].forEach(i => { phq9Trend[i] += 8; gad7Trend[i] += 6; qidsTrend[i] += 7; });
-      for (let i = 0; i < 35; i++) {
-        const t = now - (35 - i) * 52 * DAY;
+      const phq9Trend = makeTrend(22, 8, n, 2);
+      const gad7Trend = makeTrend(18, 6, n, 2);
+      const qidsTrend = makeTrend(19, 7, n, 2);
+      [24, 25, 26, 27, 28].forEach(i => { phq9Trend[i] += 8; gad7Trend[i] += 6; qidsTrend[i] += 7; });
+      for (let i = 0; i < n; i++) {
+        const rId = `sp_001_r_${String(i + 1).padStart(2, "0")}`;
+        const t = now - (n - 1 - i) * VISIT_STEP_DAYS * DAY;
         const phq9Score = Math.min(27, Math.max(0, phq9Trend[i]));
         const gad7Score = Math.min(21, Math.max(0, gad7Trend[i]));
         const qidsScore = Math.min(27, Math.max(0, qidsTrend[i]));
-        const scores = i === 0 ? { gad7: gad7Score, phq9: phq9Score, assist: 3, auditc: 4 }
-                     : i < 3   ? { gad7: gad7Score, phq9: phq9Score, assist: 2, auditc: 3 }
-                     : { gad7: gad7Score, phq9: phq9Score, qidssr: qidsScore };
+        const scores = {};
+        scores.gad7 = gad7Score;
+        scores.phq9 = phq9Score;
+        if (i === 0) { scores.assist = 3; scores.auditc = 4; }
+        else if (i % 12 === 0) { scores.assist = 2; scores.auditc = 3; }
+        if (i > 0 && i % 3 === 0) scores.qidssr = qidsScore;
         const interventions = [];
-        if (i === 0) interventions.push({ id: uid(), type: "Medication change", note: "Started sertraline 50mg. Discussed CBT referral.", createdAt: t });
-        if (i === 2) interventions.push({ id: uid(), type: "Therapy referral", note: "Enrolled in weekly CBT. Sertraline titrated to 100mg.", createdAt: t });
-        if (i === 8) interventions.push({ id: uid(), type: "Medication change", note: "PHQ-9 improving. Maintained sertraline 100mg.", createdAt: t });
-        if (i === 20) interventions.push({ id: uid(), type: "Safety planning", note: "Score elevation noted — stressful life event (job loss). Increased session frequency.", createdAt: t });
-        if (i === 22) interventions.push({ id: uid(), type: "Medication change", note: "Added buspirone 10mg BID for anxiety augmentation.", createdAt: t });
-        if (i === 26) interventions.push({ id: uid(), type: "Psychoeducation", note: "Relapse prevention strategies reviewed. Sleep hygiene reinforced.", createdAt: t });
-        entries.push({ id: uid(), patientId: "sp_001", completedAt: t, scores, answers: Object.fromEntries(Object.entries(scores).map(([k, v]) => [k, makeFakeAnswers(ASSESSMENTS[k], v)])), interventions });
+        let iIdx = 1;
+        if (i === 0) interventions.push({ id: `${rId}_i_${String(iIdx++).padStart(2, "0")}`, type: "Medication change", note: "Started sertraline 50mg. Discussed CBT referral.", createdAt: t });
+        if (i === 2) interventions.push({ id: `${rId}_i_${String(iIdx++).padStart(2, "0")}`, type: "Therapy referral", note: "Enrolled in weekly CBT. Sertraline titrated to 100mg.", createdAt: t });
+        if (i === 8) interventions.push({ id: `${rId}_i_${String(iIdx++).padStart(2, "0")}`, type: "Medication change", note: "PHQ-9 improving. Maintained sertraline 100mg.", createdAt: t });
+        if (i === 24) interventions.push({ id: `${rId}_i_${String(iIdx++).padStart(2, "0")}`, type: "Safety planning", note: "Score elevation noted — stressful life event (job loss). Increased session frequency.", createdAt: t });
+        if (i === 26) interventions.push({ id: `${rId}_i_${String(iIdx++).padStart(2, "0")}`, type: "Medication change", note: "Added buspirone 10mg BID for anxiety augmentation.", createdAt: t });
+        if (i === 32) interventions.push({ id: `${rId}_i_${String(iIdx++).padStart(2, "0")}`, type: "Psychoeducation", note: "Relapse prevention strategies reviewed. Sleep hygiene reinforced.", createdAt: t });
+        entries.push({ id: rId, patientId: "sp_001", completedAt: t, scores, answers: Object.fromEntries(Object.entries(scores).map(([k, v]) => [k, makeFakeAnswers(ASSESSMENTS[k], v)])), interventions });
       }
       return entries;
     })()
@@ -685,21 +692,27 @@ const SAMPLE_PATIENTS = [
     createdAt: now - 6 * 30 * DAY,
     note: "6-month case: Moderate GAD, initiating SSRI. Steady improvement trajectory.",
     history: (() => {
+      const n = 6;
       const entries = [];
-      const gad7Trend = makeTrend(15, 5, 7, 1.5);
-      const phq9Trend = makeTrend(11, 5, 7, 1.5);
-      for (let i = 0; i < 7; i++) {
-        const t = now - (7 - i) * 26 * DAY;
+      const gad7Trend = makeTrend(15, 5, n, 1.5);
+      const phq9Trend = makeTrend(11, 5, n, 1.5);
+      for (let i = 0; i < n; i++) {
+        const rId = `sp_002_r_${String(i + 1).padStart(2, "0")}`;
+        const t = now - (n - 1 - i) * VISIT_STEP_DAYS * DAY;
         const gad7Score = Math.min(21, Math.max(0, gad7Trend[i]));
         const phq9Score = Math.min(27, Math.max(0, phq9Trend[i]));
-        const qidsScore = Math.min(27, Math.max(0, Math.round(phq9Score * 0.7 + (Math.random()-0.5)*2)));
-        const scores = i === 0 ? { gad7: gad7Score, phq9: phq9Score, assist: 1, auditc: 5 }
-                     : { gad7: gad7Score, phq9: phq9Score, qidssr: qidsScore };
+        const qidsScore = Math.min(27, Math.max(0, Math.round(phq9Score * 0.7 + (Math.random() - 0.5) * 2)));
+        const scores = {};
+        scores.gad7 = gad7Score;
+        scores.phq9 = phq9Score;
+        if (i === 0) { scores.assist = 1; scores.auditc = 5; }
+        if (i > 0 && (i % 2 === 0 || i === 1)) scores.qidssr = qidsScore;
         const interventions = [];
-        if (i === 0) interventions.push({ id: uid(), type: "Medication change", note: "Started escitalopram 10mg for GAD/MDD. Psychoeducation provided.", createdAt: t });
-        if (i === 2) interventions.push({ id: uid(), type: "Medication change", note: "Escitalopram increased to 20mg — partial response at 10mg.", createdAt: t });
-        if (i === 4) interventions.push({ id: uid(), type: "Therapy referral", note: "Referred for mindfulness-based cognitive therapy.", createdAt: t });
-        entries.push({ id: uid(), patientId: "sp_002", completedAt: t, scores, answers: Object.fromEntries(Object.entries(scores).map(([k, v]) => [k, makeFakeAnswers(ASSESSMENTS[k], v)])), interventions });
+        let iIdx = 1;
+        if (i === 0) interventions.push({ id: `${rId}_i_${String(iIdx++).padStart(2, "0")}`, type: "Medication change", note: "Started escitalopram 10mg for GAD/MDD. Psychoeducation provided.", createdAt: t });
+        if (i === 2) interventions.push({ id: `${rId}_i_${String(iIdx++).padStart(2, "0")}`, type: "Medication change", note: "Escitalopram increased to 20mg — partial response at 10mg.", createdAt: t });
+        if (i === 4) interventions.push({ id: `${rId}_i_${String(iIdx++).padStart(2, "0")}`, type: "Therapy referral", note: "Referred for mindfulness-based cognitive therapy.", createdAt: t });
+        entries.push({ id: rId, patientId: "sp_002", completedAt: t, scores, answers: Object.fromEntries(Object.entries(scores).map(([k, v]) => [k, makeFakeAnswers(ASSESSMENTS[k], v)])), interventions });
       }
       return entries;
     })()
@@ -709,28 +722,34 @@ const SAMPLE_PATIENTS = [
     createdAt: now - 4 * 365 * DAY,
     note: "4-year case: Bipolar II with SUD history. Complex trajectory with substance use fluctuations and mood cycling.",
     history: (() => {
+      const n = 30;
       const entries = [];
-      const n = 28;
-      // Mood cycling pattern
-      const phq9Base  = Array(n).fill(0).map((_, i) => 10 + 8 * Math.sin(i * 0.7) + (Math.random()-0.5)*3);
-      const gad7Base  = Array(n).fill(0).map((_, i) =>  8 + 5 * Math.sin(i * 0.5 + 1) + (Math.random()-0.5)*2);
-      const assistBase = Array(n).fill(0).map((_, i) => i < 12 ? 14 + (Math.random()-0.5)*4 : 5 + (Math.random()-0.5)*3);
+      const phq9Base = Array(n).fill(0).map((_, i) => 10 + 8 * Math.sin(i * 0.7) + (Math.random() - 0.5) * 3);
+      const gad7Base = Array(n).fill(0).map((_, i) => 8 + 5 * Math.sin(i * 0.5 + 1) + (Math.random() - 0.5) * 2);
+      const assistBase = Array(n).fill(0).map((_, i) => i < 10 ? 14 + (Math.random() - 0.5) * 4 : 5 + (Math.random() - 0.5) * 3);
       for (let i = 0; i < n; i++) {
-        const t = now - (n - i) * 52 * DAY;
-        const phq9Score  = Math.min(27, Math.max(0, Math.round(phq9Base[i])));
-        const gad7Score  = Math.min(21, Math.max(0, Math.round(gad7Base[i])));
+        const rId = `sp_003_r_${String(i + 1).padStart(2, "0")}`;
+        const t = now - (n - 1 - i) * VISIT_STEP_DAYS * DAY;
+        const phq9Score = Math.min(27, Math.max(0, Math.round(phq9Base[i])));
+        const gad7Score = Math.min(21, Math.max(0, Math.round(gad7Base[i])));
         const assistScore = Math.min(40, Math.max(0, Math.round(assistBase[i])));
-        const qidsScore  = Math.min(27, Math.max(0, Math.round(phq9Score * 0.75)));
-        const scores = i === 0 ? { gad7: gad7Score, phq9: phq9Score, assist: assistScore, auditc: 6 }
-                     : { gad7: gad7Score, phq9: phq9Score, qidssr: qidsScore, assist: assistScore };
+        const qidsScore = Math.min(27, Math.max(0, Math.round(phq9Score * 0.75)));
+        const scores = {};
+        scores.gad7 = gad7Score;
+        scores.phq9 = phq9Score;
+        if (i === 0) { scores.assist = assistScore; scores.auditc = 6; }
+        else if (i % 12 === 0) { scores.assist = Math.min(40, Math.max(0, Math.round(assistBase[i]))); scores.auditc = 4; }
+        else if (i < 10) scores.assist = Math.min(40, Math.max(0, Math.round(assistBase[i])));
+        if (i > 0 && i % 3 === 0) scores.qidssr = qidsScore;
         const interventions = [];
-        if (i === 0)  interventions.push({ id: uid(), type: "Medication change", note: "Initiated lamotrigine 25mg, titrating. SUD counseling referral.", createdAt: t });
-        if (i === 3)  interventions.push({ id: uid(), type: "Therapy referral", note: "Enrolled in DBT group. Lamotrigine 100mg.", createdAt: t });
-        if (i === 10) interventions.push({ id: uid(), type: "Safety planning", note: "ASSIST scores elevated. Discussed harm reduction. Referred to addiction psychiatry.", createdAt: t });
-        if (i === 13) interventions.push({ id: uid(), type: "Medication change", note: "ASSIST improving. Added naltrexone 50mg for alcohol use.", createdAt: t });
-        if (i === 18) interventions.push({ id: uid(), type: "Psychoeducation", note: "Mood cycling discussed. Sleep tracking initiated.", createdAt: t });
-        if (i === 24) interventions.push({ id: uid(), type: "Medication change", note: "Lamotrigine 200mg — stable for 6 months.", createdAt: t });
-        entries.push({ id: uid(), patientId: "sp_003", completedAt: t, scores, answers: Object.fromEntries(Object.entries(scores).map(([k, v]) => [k, makeFakeAnswers(ASSESSMENTS[k], v)])), interventions });
+        let iIdx = 1;
+        if (i === 0) interventions.push({ id: `${rId}_i_${String(iIdx++).padStart(2, "0")}`, type: "Medication change", note: "Initiated lamotrigine 25mg, titrating. SUD counseling referral.", createdAt: t });
+        if (i === 3) interventions.push({ id: `${rId}_i_${String(iIdx++).padStart(2, "0")}`, type: "Therapy referral", note: "Enrolled in DBT group. Lamotrigine 100mg.", createdAt: t });
+        if (i === 10) interventions.push({ id: `${rId}_i_${String(iIdx++).padStart(2, "0")}`, type: "Safety planning", note: "ASSIST scores elevated. Discussed harm reduction. Referred to addiction psychiatry.", createdAt: t });
+        if (i === 13) interventions.push({ id: `${rId}_i_${String(iIdx++).padStart(2, "0")}`, type: "Medication change", note: "ASSIST improving. Added naltrexone 50mg for alcohol use.", createdAt: t });
+        if (i === 18) interventions.push({ id: `${rId}_i_${String(iIdx++).padStart(2, "0")}`, type: "Psychoeducation", note: "Mood cycling discussed. Sleep tracking initiated.", createdAt: t });
+        if (i === 24) interventions.push({ id: `${rId}_i_${String(iIdx++).padStart(2, "0")}`, type: "Medication change", note: "Lamotrigine 200mg — stable for 6 months.", createdAt: t });
+        entries.push({ id: rId, patientId: "sp_003", completedAt: t, scores, answers: Object.fromEntries(Object.entries(scores).map(([k, v]) => [k, makeFakeAnswers(ASSESSMENTS[k], v)])), interventions });
       }
       return entries;
     })()
@@ -740,22 +759,27 @@ const SAMPLE_PATIENTS = [
     createdAt: now - 2 * 365 * DAY,
     note: "2-year case: ADHD + anxiety. Stable on stimulant, GAD well-controlled.",
     history: (() => {
+      const n = 18;
       const entries = [];
-      const n = 14;
       const gad7Trend = makeTrend(14, 4, n, 1.5);
-      const phq9Trend = makeTrend(9,  3, n, 1.2);
+      const phq9Trend = makeTrend(9, 3, n, 1.2);
       for (let i = 0; i < n; i++) {
-        const t = now - (n - i) * 52 * DAY;
+        const rId = `sp_004_r_${String(i + 1).padStart(2, "0")}`;
+        const t = now - (n - 1 - i) * VISIT_STEP_DAYS * DAY;
         const gad7Score = Math.min(21, Math.max(0, gad7Trend[i]));
         const phq9Score = Math.min(27, Math.max(0, phq9Trend[i]));
-        const scores = i === 0 ? { gad7: gad7Score, phq9: phq9Score, assist: 0, auditc: 2 }
-                     : { gad7: gad7Score, phq9: phq9Score };
+        const scores = {};
+        scores.gad7 = gad7Score;
+        scores.phq9 = phq9Score;
+        if (i === 0) { scores.assist = 0; scores.auditc = 2; }
+        else if (i % 12 === 0) { scores.assist = 0; scores.auditc = 2; }
         const interventions = [];
-        if (i === 0) interventions.push({ id: uid(), type: "Medication change", note: "Started methylphenidate ER 18mg. Concurrent GAD management.", createdAt: t });
-        if (i === 2) interventions.push({ id: uid(), type: "Medication change", note: "Increased to 36mg — partial response. Added low-dose buspirone.", createdAt: t });
-        if (i === 6) interventions.push({ id: uid(), type: "Psychoeducation", note: "Anxiety well-controlled. Reviewed sleep and exercise habits.", createdAt: t });
-        if (i === 10) interventions.push({ id: uid(), type: "Other", note: "Annual review — stable. Maintained current regimen.", createdAt: t });
-        entries.push({ id: uid(), patientId: "sp_004", completedAt: t, scores, answers: Object.fromEntries(Object.entries(scores).map(([k, v]) => [k, makeFakeAnswers(ASSESSMENTS[k], v)])), interventions });
+        let iIdx = 1;
+        if (i === 0) interventions.push({ id: `${rId}_i_${String(iIdx++).padStart(2, "0")}`, type: "Medication change", note: "Started methylphenidate ER 18mg. Concurrent GAD management.", createdAt: t });
+        if (i === 2) interventions.push({ id: `${rId}_i_${String(iIdx++).padStart(2, "0")}`, type: "Medication change", note: "Increased to 36mg — partial response. Added low-dose buspirone.", createdAt: t });
+        if (i === 6) interventions.push({ id: `${rId}_i_${String(iIdx++).padStart(2, "0")}`, type: "Psychoeducation", note: "Anxiety well-controlled. Reviewed sleep and exercise habits.", createdAt: t });
+        if (i === 12) interventions.push({ id: `${rId}_i_${String(iIdx++).padStart(2, "0")}`, type: "Other", note: "Annual review — stable. Maintained current regimen.", createdAt: t });
+        entries.push({ id: rId, patientId: "sp_004", completedAt: t, scores, answers: Object.fromEntries(Object.entries(scores).map(([k, v]) => [k, makeFakeAnswers(ASSESSMENTS[k], v)])), interventions });
       }
       return entries;
     })()
@@ -765,24 +789,29 @@ const SAMPLE_PATIENTS = [
     createdAt: now - 18 * 30 * DAY,
     note: "18-month case: PTSD + MDD. Prolonged exposure therapy + SSRI. Showing steady improvement.",
     history: (() => {
+      const n = 12;
       const entries = [];
-      const n = 10;
-      const phq9Trend = makeTrend(20, 9,  n, 2);
-      const gad7Trend = makeTrend(17, 7,  n, 2);
-      const qidsTrend = makeTrend(17, 8,  n, 2);
+      const phq9Trend = makeTrend(20, 9, n, 2);
+      const gad7Trend = makeTrend(17, 7, n, 2);
+      const qidsTrend = makeTrend(17, 8, n, 2);
       for (let i = 0; i < n; i++) {
-        const t = now - (n - i) * 55 * DAY;
+        const rId = `sp_005_r_${String(i + 1).padStart(2, "0")}`;
+        const t = now - (n - 1 - i) * VISIT_STEP_DAYS * DAY;
         const phq9Score = Math.min(27, Math.max(0, phq9Trend[i]));
         const gad7Score = Math.min(21, Math.max(0, gad7Trend[i]));
         const qidsScore = Math.min(27, Math.max(0, qidsTrend[i]));
-        const scores = i === 0 ? { gad7: gad7Score, phq9: phq9Score, assist: 2, auditc: 3 }
-                     : { gad7: gad7Score, phq9: phq9Score, qidssr: qidsScore };
+        const scores = {};
+        scores.gad7 = gad7Score;
+        scores.phq9 = phq9Score;
+        if (i === 0) { scores.assist = 2; scores.auditc = 3; }
+        if (i > 0) scores.qidssr = qidsScore;
         const interventions = [];
-        if (i === 0) interventions.push({ id: uid(), type: "Therapy referral", note: "Referred for Prolonged Exposure therapy. Started sertraline 50mg.", createdAt: t });
-        if (i === 2) interventions.push({ id: uid(), type: "Medication change", note: "Sertraline titrated to 150mg. PE therapy week 4.", createdAt: t });
-        if (i === 5) interventions.push({ id: uid(), type: "Psychoeducation", note: "Significant improvement noted. Reinforced trauma coping strategies.", createdAt: t });
-        if (i === 8) interventions.push({ id: uid(), type: "Other", note: "Considering step-down from weekly PE to monthly maintenance.", createdAt: t });
-        entries.push({ id: uid(), patientId: "sp_005", completedAt: t, scores, answers: Object.fromEntries(Object.entries(scores).map(([k, v]) => [k, makeFakeAnswers(ASSESSMENTS[k], v)])), interventions });
+        let iIdx = 1;
+        if (i === 0) interventions.push({ id: `${rId}_i_${String(iIdx++).padStart(2, "0")}`, type: "Therapy referral", note: "Referred for Prolonged Exposure therapy. Started sertraline 50mg.", createdAt: t });
+        if (i === 2) interventions.push({ id: `${rId}_i_${String(iIdx++).padStart(2, "0")}`, type: "Medication change", note: "Sertraline titrated to 150mg. PE therapy week 4.", createdAt: t });
+        if (i === 5) interventions.push({ id: `${rId}_i_${String(iIdx++).padStart(2, "0")}`, type: "Psychoeducation", note: "Significant improvement noted. Reinforced trauma coping strategies.", createdAt: t });
+        if (i === 8) interventions.push({ id: `${rId}_i_${String(iIdx++).padStart(2, "0")}`, type: "Other", note: "Considering step-down from weekly PE to monthly maintenance.", createdAt: t });
+        entries.push({ id: rId, patientId: "sp_005", completedAt: t, scores, answers: Object.fromEntries(Object.entries(scores).map(([k, v]) => [k, makeFakeAnswers(ASSESSMENTS[k], v)])), interventions });
       }
       return entries;
     })()
@@ -1221,9 +1250,12 @@ function InterventionModal({ result, onClose, onSave }) {
 }
 
 // ─── PATIENT DETAIL ───────────────────────────────────────────────────────────
+const TIMEFRAME_OPTIONS = ["3M", "6M", "1Y", "2Y", "All"];
+
 function PatientDetail({ patient, onBack }) {
   const [results, setResults] = useState([]);
   const [activeFilters, setActiveFilters] = useState(["gad7", "phq9", "qidssr", "assist", "auditc"]);
+  const [timeframe, setTimeframe] = useState("1Y");
   const [interventionTarget, setInterventionTarget] = useState(null);
   const [expandedResultId, setExpandedResultId] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -1248,7 +1280,14 @@ function PatientDetail({ patient, onBack }) {
     setActiveFilters(prev => prev.includes(id) ? prev.filter(f => f !== id) : [...prev, id]);
   };
 
-  const chartData = results.map(r => ({
+  const now = Date.now();
+  const cutoffMs = timeframe === "3M" ? 3 * 30 * 24 * 60 * 60 * 1000
+    : timeframe === "6M" ? 6 * 30 * 24 * 60 * 60 * 1000
+    : timeframe === "1Y" ? 365 * 24 * 60 * 60 * 1000
+    : timeframe === "2Y" ? 2 * 365 * 24 * 60 * 60 * 1000
+    : null;
+  const resultsInTimeframe = cutoffMs == null ? results : results.filter(r => (r.completedAt || 0) >= now - cutoffMs);
+  const chartData = resultsInTimeframe.map(r => ({
     date: fmtDate(r.completedAt),
     ...Object.fromEntries(Object.entries(r.scores || {}).map(([k, v]) => [ASSESSMENTS[k]?.label || k, v]))
   }));
@@ -1323,7 +1362,7 @@ function PatientDetail({ patient, onBack }) {
       {results.length > 1 && (
         <div className="card" style={{ marginBottom: "1.5rem" }}>
           <div className="card-title">Score Trends Over Time</div>
-          <div className="filter-pills">
+          <div className="filter-pills" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "0.5rem", marginBottom: "1rem" }}>
             {allAssessmentIds.map(id => {
               const def = ASSESSMENTS[id];
               if (!def) return null;
@@ -1334,6 +1373,16 @@ function PatientDetail({ patient, onBack }) {
                 </button>
               );
             })}
+            <span style={{ marginLeft: "0.5rem", color: "var(--muted)", fontSize: "0.75rem" }}>Timeframe:</span>
+            {TIMEFRAME_OPTIONS.map((tf) => (
+              <button
+                key={tf}
+                className={`filter-pill${timeframe === tf ? " active" : ""}`}
+                onClick={() => setTimeframe(tf)}
+              >
+                {tf}
+              </button>
+            ))}
           </div>
           <div className="chart-wrap" style={chartData.length > 20 ? { height: 320 } : undefined}>
             <ResponsiveContainer width="100%" height="100%">
