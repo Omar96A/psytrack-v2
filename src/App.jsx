@@ -1711,7 +1711,7 @@ function ClinicianDashboard() {
         <PatientDetail patient={selectedPatient} onBack={() => setSelected(null)} />
       )}
 
-      {showNew && <NewPatientModal clinicianId={clinicianId} onClose={() => setShowNew(false)} onCreated={(p) => { refresh(); setShowNew(false); }} />}
+      {showNew && <NewPatientModal clinicianId={clinicianId} onClose={() => setShowNew(false)} onCreated={(p) => { refresh(); }} />}
       {sendTo && <SendAssessmentModal patient={sendTo} onClose={() => setSendTo(null)} />}
     </div>
   );
