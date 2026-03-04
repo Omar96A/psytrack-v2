@@ -1335,18 +1335,18 @@ function PatientDetail({ patient, onBack }) {
               );
             })}
           </div>
-          <div className="chart-wrap">
+          <div className="chart-wrap" style={chartData.length > 20 ? { height: 320 } : undefined}>
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
-                <XAxis dataKey="date" tick={{ fill: "#94A3B8", fontSize: 11 }} />
+                <XAxis dataKey="date" tick={{ fill: "#94A3B8", fontSize: 11 }} interval={chartData.length > 15 ? "preserveStartEnd" : 0} />
                 <YAxis tick={{ fill: "#94A3B8", fontSize: 11 }} />
                 <Tooltip contentStyle={{ background: "var(--surface2)", border: "1px solid var(--border-bright)", borderRadius: "8px", color: "var(--text)", boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }} labelStyle={{ color: "var(--muted)" }} />
                 <Legend wrapperStyle={{ color: "#64748B", fontSize: "12px" }} />
                 {allAssessmentIds.filter(id => activeFilters.includes(id)).map(id => {
                   const def = ASSESSMENTS[id];
                   if (!def) return null;
-                  return <Line key={id} type="monotone" dataKey={def.label} stroke={def.color} strokeWidth={2} dot={{ fill: def.color, r: 4 }} />;
+                  return <Line key={id} type="monotone" dataKey={def.label} stroke={def.color} strokeWidth={2} dot={chartData.length <= 15 ? { fill: def.color, r: 4 } : false} />;
                 })}
               </LineChart>
             </ResponsiveContainer>
