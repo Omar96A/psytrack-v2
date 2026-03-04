@@ -1346,7 +1346,7 @@ function PatientDetail({ patient, onBack }) {
                 {allAssessmentIds.filter(id => activeFilters.includes(id)).map(id => {
                   const def = ASSESSMENTS[id];
                   if (!def) return null;
-                  return <Line key={id} type="monotone" dataKey={def.label} stroke={def.color} strokeWidth={2} dot={chartData.length <= 15 ? { fill: def.color, r: 4 } : false} />;
+                  return <Line key={id} type="monotone" dataKey={def.label} stroke={def.color} strokeWidth={2} dot={false} />;
                 })}
               </LineChart>
             </ResponsiveContainer>
