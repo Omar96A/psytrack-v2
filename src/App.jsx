@@ -929,8 +929,11 @@ function AssessmentForm({ def, onComplete, onSkip }) {
   const [answers, setAnswers] = useState(Array(def.questions.length).fill(null));
 
   const setAnswer = (i, v) => setAnswers(prev => { const a = [...prev]; a[i] = v; return a; });
-  const allAnswered = answers.every(a => a !== null);
-  const total = scoreAssessment(answers.map(a => a ?? 0));
+  const isSpecifyQuestion = (i) => def.questions[i]?.toLowerCase().includes("please specify");
+  const allAnswered = answers.every((a, i) =>
+    isSpecifyQuestion(i) ? (typeof a === "string" && a.trim() !== "") : a !== null
+  );
+  const total = scoreAssessment(answers.map(a => (typeof a === "string" ? 0 : (a ?? 0))));
 
   return (
     <div className="card" style={{ marginBottom: "1.5rem" }}>
@@ -948,15 +951,27 @@ function AssessmentForm({ def, onComplete, onSkip }) {
 
       {def.questions.map((q, i) => {
         const opts = Array.isArray(def.options[0]) ? def.options[i] : def.options;
+        const useTextInput = isSpecifyQuestion(i);
         return (
           <div className="q-item" key={i}>
             <div className="q-text"><span style={{ color: "var(--muted)", marginRight: "0.5rem" }}>{i + 1}.</span>{q}</div>
             <div className="q-options">
-              {opts.map((opt, j) => (
-                <button key={j} className={`q-option${answers[i] === j ? " selected" : ""}`} onClick={() => setAnswer(i, j)}>
-                  {opt}
-                </button>
-              ))}
+              {useTextInput ? (
+                <input
+                  type="text"
+                  className="input"
+                  placeholder="Specify here…"
+                  value={answers[i] ?? ""}
+                  onChange={(e) => setAnswer(i, e.target.value)}
+                  style={{ marginTop: "0.25rem" }}
+                />
+              ) : (
+                opts.map((opt, j) => (
+                  <button key={j} className={`q-option${answers[i] === j ? " selected" : ""}`} onClick={() => setAnswer(i, j)}>
+                    {opt}
+                  </button>
+                ))
+              )}
             </div>
           </div>
         );
