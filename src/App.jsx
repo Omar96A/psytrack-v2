@@ -1225,6 +1225,7 @@ function PatientDetail({ patient, onBack }) {
   const [results, setResults] = useState([]);
   const [activeFilters, setActiveFilters] = useState(["gad7", "phq9", "qidssr", "assist", "auditc"]);
   const [interventionTarget, setInterventionTarget] = useState(null);
+  const [expandedResultId, setExpandedResultId] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -1359,6 +1360,7 @@ function PatientDetail({ patient, onBack }) {
         <div className="timeline">
           {results.slice().reverse().map((r) => {
             const dotColor = r.scores?.phq9 >= 10 ? "var(--danger)" : r.scores?.gad7 >= 10 ? "var(--warn)" : "var(--accent2)";
+            const isExpanded = expandedResultId === r.id;
             return (
               <div className="tl-item" key={r.id}>
                 <div className="tl-dot" style={{ background: dotColor }} />
@@ -1388,9 +1390,45 @@ function PatientDetail({ patient, onBack }) {
                       ))}
                     </div>
                   )}
-                  <button className="intervention-btn" onClick={() => setInterventionTarget(r)}>
-                    + Log Intervention
-                  </button>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", alignItems: "center", marginTop: "0.5rem" }}>
+                    <button
+                      type="button"
+                      className="intervention-btn"
+                      style={{ background: "rgba(59,130,246,0.1)", border: "1px solid rgba(59,130,246,0.25)", color: "var(--blue)" }}
+                      onClick={() => setExpandedResultId(isExpanded ? null : r.id)}
+                    >
+                      {isExpanded ? "▼ Hide Responses" : "▶ View Responses"}
+                    </button>
+                    <button className="intervention-btn" onClick={() => setInterventionTarget(r)}>
+                      + Log Intervention
+                    </button>
+                  </div>
+                  {isExpanded && (r.answers && Object.keys(r.answers).length > 0) && (
+                    <div style={{ marginTop: "1rem", paddingTop: "1rem", borderTop: "1px solid var(--border)", fontSize: "0.85rem" }}>
+                      {Object.entries(r.answers).map(([assessId, answerList]) => {
+                        const def = ASSESSMENTS[assessId];
+                        if (!def || !Array.isArray(answerList)) return null;
+                        const opts = Array.isArray(def.options?.[0]) ? def.options : null;
+                        return (
+                          <div key={assessId} style={{ marginBottom: "1.25rem" }}>
+                            <div style={{ fontWeight: 600, color: "var(--text)", marginBottom: "0.5rem" }}>{def.label}</div>
+                            {(def.questions || []).map((questionText, qIdx) => {
+                              const raw = answerList[qIdx];
+                              const answerLabel = typeof raw === "string"
+                                ? raw.trim() || "(no response)"
+                                : (opts ? (opts[qIdx]?.[raw] ?? String(raw)) : (def.options?.[raw] ?? String(raw)));
+                              return (
+                                <div key={qIdx} style={{ marginBottom: "0.5rem", paddingLeft: "0.5rem", borderLeft: "2px solid var(--border)" }}>
+                                  <div style={{ color: "var(--muted)", fontSize: "0.8rem", marginBottom: "0.2rem" }}>{questionText}</div>
+                                  <div style={{ color: "var(--text)", fontWeight: 500 }}>{answerLabel}</div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               </div>
             );
