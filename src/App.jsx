@@ -791,12 +791,14 @@ const SAMPLE_PATIENTS = [
 
 let didSeedSupabaseDemoResults = false;
 
-const seedDemoData = async () => {
-  // Seed sample patients into Supabase `patients` table if missing.
+const seedDemoData = async (clinicianId) => {
+  // Seed sample patients into Supabase `patients` table if missing (for this clinician).
+  if (!clinicianId) return;
   try {
     const { data: existingPatients, error: patientsErr } = await supabase
       .from("patients")
-      .select("id");
+      .select("id")
+      .eq("clinician_id", clinicianId);
     if (patientsErr) throw patientsErr;
     const existingIds = new Set((existingPatients || []).map(p => p.id));
     const toInsert = SAMPLE_PATIENTS
@@ -806,6 +808,7 @@ const seedDemoData = async () => {
         name,
         email,
         created_at: new Date(createdAt).toISOString(),
+        clinician_id: clinicianId,
       }));
     if (toInsert.length > 0) {
       await supabase.from("patients").insert(toInsert);
@@ -1391,7 +1394,7 @@ function PatientDetail({ patient, onBack }) {
 }
 
 // ─── NEW PATIENT MODAL ────────────────────────────────────────────────────────
-function NewPatientModal({ onClose, onCreated }) {
+function NewPatientModal({ clinicianId, onClose, onCreated }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [saving, setSaving] = useState(false);
@@ -1407,6 +1410,7 @@ function NewPatientModal({ onClose, onCreated }) {
       name: patient.name,
       email: patient.email,
       created_at: new Date(patient.createdAt).toISOString(),
+      clinician_id: clinicianId ?? null,
     });
     if (patientErr) {
       setSaving(false);
@@ -1541,17 +1545,31 @@ function SendAssessmentModal({ patient, onClose }) {
 
 // ─── CLINICIAN DASHBOARD ──────────────────────────────────────────────────────
 function ClinicianDashboard() {
+  const [clinicianId, setClinicianId] = useState(null);
   const [patients, setPatients] = useState([]);
   const [selected, setSelected] = useState(null);
   const [showNew, setShowNew] = useState(false);
   const [sendTo, setSendTo] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.auth.getUser();
+      setClinicianId(data?.user?.id ?? null);
+    })();
+  }, []);
+
   const refresh = useCallback(async () => {
-    await seedDemoData();
+    await seedDemoData(clinicianId);
+    if (!clinicianId) {
+      setPatients([]);
+      setLoading(false);
+      return;
+    }
     const { data, error } = await supabase
       .from("patients")
       .select("id, name, email, created_at")
+      .eq("clinician_id", clinicianId)
       .order("created_at", { ascending: true });
     if (!error && data) {
       const mapped = data.map(row => ({
@@ -1565,9 +1583,11 @@ function ClinicianDashboard() {
       setPatients([]);
     }
     setLoading(false);
-  }, []);
+  }, [clinicianId]);
 
-  useEffect(() => { refresh(); }, [refresh]);
+  useEffect(() => {
+    if (clinicianId !== undefined) refresh();
+  }, [clinicianId, refresh]);
 
   const selectedPatient = patients.find(p => p.id === selected);
 
@@ -1691,7 +1711,7 @@ function ClinicianDashboard() {
         <PatientDetail patient={selectedPatient} onBack={() => setSelected(null)} />
       )}
 
-      {showNew && <NewPatientModal onClose={() => setShowNew(false)} onCreated={(p) => { refresh(); setShowNew(false); }} />}
+      {showNew && <NewPatientModal clinicianId={clinicianId} onClose={() => setShowNew(false)} onCreated={(p) => { refresh(); setShowNew(false); }} />}
       {sendTo && <SendAssessmentModal patient={sendTo} onClose={() => setSendTo(null)} />}
     </div>
   );
