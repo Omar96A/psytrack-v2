@@ -469,9 +469,11 @@ const css = `
     position: fixed; inset: 0; z-index: 0;
     background: #05080F;
     overflow: hidden;
+    contain: strict;
   }
   .home-orb {
-    position: absolute; border-radius: 50%; filter: blur(80px); opacity: 0.55; pointer-events: none;
+    position: absolute; border-radius: 50%; filter: blur(60px); opacity: 0.55; pointer-events: none;
+    will-change: transform; transform: translateZ(0);
   }
   .home-orb-1 {
     width: 600px; height: 600px;
@@ -494,7 +496,7 @@ const css = `
   .home-noise {
     position: absolute; inset: 0;
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
-    opacity: 0.35; pointer-events: none;
+    opacity: 0.25; pointer-events: none; will-change: auto;
   }
   .home-wrap {
     position: relative; z-index: 1; min-height: 100vh;
