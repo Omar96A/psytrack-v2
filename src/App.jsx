@@ -13,6 +13,17 @@ const save = async (key, val, shared = false) => {
   try { localStorage.setItem(key, JSON.stringify(val)); } catch {}
 };
 
+const auditLog = async (clinicianId, action, resourceType, resourceId, details = {}) => {
+  if (!clinicianId) return;
+  await supabase.from("audit_logs").insert({
+    clinician_id: clinicianId,
+    action,
+    resource_type: resourceType,
+    resource_id: resourceId,
+    details,
+  });
+};
+
 // ─── ASSESSMENT DEFINITIONS ──────────────────────────────────────────────────
 const GAD7 = {
   id: "gad7", label: "GAD-7", color: "#6EE7B7",
@@ -1297,13 +1308,19 @@ function InterventionModal({ result, onClose, onSave }) {
 // ─── PATIENT DETAIL ───────────────────────────────────────────────────────────
 const TIMEFRAME_OPTIONS = ["3M", "6M", "1Y", "2Y", "All"];
 
-function PatientDetail({ patient, onBack }) {
+function PatientDetail({ patient, onBack, clinicianId }) {
   const [results, setResults] = useState([]);
   const [activeFilters, setActiveFilters] = useState(["gad7", "phq9", "qidssr", "assist", "auditc"]);
   const [timeframe, setTimeframe] = useState("1Y");
   const [interventionTarget, setInterventionTarget] = useState(null);
   const [expandedResultId, setExpandedResultId] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (patient?.id && clinicianId) {
+      auditLog(clinicianId, "view_patient", "patient", patient.id, { patient_name: patient.name });
+    }
+  }, [patient?.id, patient?.name, clinicianId]);
 
   useEffect(() => {
     (async () => {
@@ -1320,6 +1337,12 @@ function PatientDetail({ patient, onBack }) {
       setLoading(false);
     })();
   }, [patient.id]);
+
+  useEffect(() => {
+    if (expandedResultId && clinicianId) {
+      auditLog(clinicianId, "view_responses", "result", expandedResultId, {});
+    }
+  }, [expandedResultId, clinicianId]);
 
   const toggleFilter = (id) => {
     setActiveFilters(prev => prev.includes(id) ? prev.filter(f => f !== id) : [...prev, id]);
@@ -1346,6 +1369,9 @@ function PatientDetail({ patient, onBack }) {
     const target = updated.find(r => r.id === resultId);
     if (target) {
       await supabase.from("results").update({ data: target }).eq("id", resultId);
+      if (clinicianId) {
+        await auditLog(clinicianId, "log_intervention", "result", resultId, { type, note });
+      }
     }
   };
 
@@ -1580,6 +1606,9 @@ function NewPatientModal({ clinicianId, onClose, onCreated }) {
     setLink(url);
     setSaving(false);
     onCreated(patient);
+    if (clinicianId) {
+      await auditLog(clinicianId, "create_patient", "patient", patient.id, { patient_name: name });
+    }
   };
 
   return (
@@ -1728,6 +1757,9 @@ function ClinicianDashboard() {
         createdAt: row.created_at ? new Date(row.created_at).getTime() : Date.now(),
       }));
       setPatients(mapped);
+      if (clinicianId) {
+        await auditLog(clinicianId, "view_patient_list", "patients", null, {});
+      }
     } else {
       setPatients([]);
     }
@@ -1904,7 +1936,7 @@ function ClinicianDashboard() {
 
         </>
       ) : (
-        <PatientDetail patient={selectedPatient} onBack={() => setSelected(null)} />
+        <PatientDetail patient={selectedPatient} onBack={() => setSelected(null)} clinicianId={clinicianId} />
       )}
 
       {showNew && <NewPatientModal clinicianId={clinicianId} onClose={() => setShowNew(false)} onCreated={(p) => { refresh(); }} />}
@@ -1928,6 +1960,7 @@ function LoginModal({ onClose, onLoginSuccess, onSwitchToSignup }) {
     if (error) {
       setError(error.message || "Unable to sign in. Please check your credentials.");
     } else if (data?.user) {
+      await auditLog(data.user.id, "sign_in", "auth", null, {});
       onLoginSuccess(data.user);
     }
     setLoading(false);
@@ -2455,6 +2488,7 @@ export default function App() {
   }, [maybeAutoRouteToClinician]);
 
   const handleSignOut = async () => {
+    if (user?.id) await auditLog(user.id, "sign_out", "auth", null, {});
     await supabase.auth.signOut();
     setUser(null);
     setShowLogin(false);
