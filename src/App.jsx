@@ -2145,8 +2145,29 @@ function SignupModal({ onClose, onSwitchToLogin }) {
   );
 }
 
+// ─── INACTIVITY WARNING MODAL ─────────────────────────────────────────────────
+function InactivityWarningModal({ onStaySignedIn }) {
+  return (
+    <div className="login-modal-bg" onClick={e => e.target === e.currentTarget && onStaySignedIn()}>
+      <div className="login-modal">
+        <h2 className="login-title">Session expiring</h2>
+        <p className="login-sub" style={{ marginBottom: "1.5rem" }}>
+          You will be signed out in 2 minutes due to inactivity.
+        </p>
+        <button
+          className="home-btn-primary"
+          style={{ width: "100%", justifyContent: "center", borderRadius: "10px" }}
+          onClick={onStaySignedIn}
+        >
+          Stay signed in
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ─── HOME PAGE ────────────────────────────────────────────────────────────────
-function HomePage({ user, onEnterPatient, onAbout, onOpenLogin, onOpenSignup, onSignOut, onGoClinician }) {
+function HomePage({ user, onEnterPatient, onAbout, onOpenLogin, onOpenSignup, onSignOut, onGoClinician, sessionTimeoutMessage }) {
 
   const features = [
     { icon: "📊", title: "Longitudinal Tracking", desc: "Chart patient outcomes across validated assessments over time with rich visual graphs." },
@@ -2159,6 +2180,11 @@ function HomePage({ user, onEnterPatient, onAbout, onOpenLogin, onOpenSignup, on
       <div className="home-bg" />
 
       <div className="home-wrap">
+        {sessionTimeoutMessage && (
+          <div className="alert alert-info" style={{ margin: "1rem 2rem", textAlign: "center" }}>
+            {sessionTimeoutMessage}
+          </div>
+        )}
         {/* Nav */}
         <nav className="home-nav">
           <div className="home-logo">PsyTrack</div>
@@ -2285,6 +2311,47 @@ function AboutPage({ onBack }) {
   );
 }
 
+// ─── INACTIVITY TIMEOUT HOOK ─────────────────────────────────────────────────
+const INACTIVITY_MS = 1800000;   // 30 minutes
+const WARNING_MS = 1680000;      // 28 minutes (2 min before timeout)
+
+function useInactivityTimeout(active, onTimeout, onWarning) {
+  const timeoutIdRef = useRef(null);
+  const warningIdRef = useRef(null);
+  const onTimeoutRef = useRef(onTimeout);
+  const onWarningRef = useRef(onWarning);
+  onTimeoutRef.current = onTimeout;
+  onWarningRef.current = onWarning;
+
+  const startTimers = useCallback(() => {
+    if (timeoutIdRef.current) clearTimeout(timeoutIdRef.current);
+    if (warningIdRef.current) clearTimeout(warningIdRef.current);
+    warningIdRef.current = setTimeout(() => { onWarningRef.current?.(); }, WARNING_MS);
+    timeoutIdRef.current = setTimeout(() => { onTimeoutRef.current?.(); }, INACTIVITY_MS);
+  }, []);
+
+  const reset = useCallback(() => {
+    startTimers();
+  }, [startTimers]);
+
+  useEffect(() => {
+    if (!active) return;
+    const events = ["mousemove", "mousedown", "keypress", "scroll", "touchstart"];
+    const handleActivity = () => startTimers();
+    events.forEach(ev => window.addEventListener(ev, handleActivity));
+    startTimers();
+    return () => {
+      events.forEach(ev => window.removeEventListener(ev, handleActivity));
+      if (timeoutIdRef.current) clearTimeout(timeoutIdRef.current);
+      if (warningIdRef.current) clearTimeout(warningIdRef.current);
+      timeoutIdRef.current = null;
+      warningIdRef.current = null;
+    };
+  }, [active, startTimers]);
+
+  return { reset };
+}
+
 // ─── APP ROOT ─────────────────────────────────────────────────────────────────
 export default function App() {
   const [screen, setScreen] = useState("home"); // "home" | "about" | "clinician" | "patient"
@@ -2293,6 +2360,8 @@ export default function App() {
   const [showLogin, setShowLogin] = useState(false);
   const [showSignup, setShowSignup] = useState(false);
   const [authReady, setAuthReady] = useState(false);
+  const [showInactivityWarning, setShowInactivityWarning] = useState(false);
+  const [sessionTimeoutMessage, setSessionTimeoutMessage] = useState(null);
 
   const screenRef = useRef(screen);
   const patientSessionRef = useRef(patientSession);
@@ -2303,6 +2372,22 @@ export default function App() {
   useEffect(() => { screenRef.current = screen; }, [screen]);
   useEffect(() => { patientSessionRef.current = patientSession; }, [patientSession]);
   useEffect(() => { userRef.current = user; }, [user]);
+
+  const handleInactivityTimeout = useCallback(() => {
+    setShowInactivityWarning(false);
+    supabase.auth.signOut();
+    setUser(null);
+    setShowLogin(false);
+    setScreen("home");
+    setSessionTimeoutMessage("You were signed out due to inactivity.");
+  }, []);
+  const handleInactivityWarning = useCallback(() => setShowInactivityWarning(true), []);
+  const inactivityActive = !!(user && screen === "clinician");
+  const { reset: resetInactivity } = useInactivityTimeout(inactivityActive, handleInactivityTimeout, handleInactivityWarning);
+
+  useEffect(() => {
+    if (screen !== "home") setSessionTimeoutMessage(null);
+  }, [screen]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -2404,6 +2489,7 @@ export default function App() {
             setShowLogin(false);
             setScreen("clinician");
           }}
+          sessionTimeoutMessage={sessionTimeoutMessage}
         />
         {showLogin && authReady && !user && !patientSession && (
           <LoginModal
@@ -2524,6 +2610,14 @@ export default function App() {
           <SignupModal
             onClose={() => setShowSignup(false)}
             onSwitchToLogin={() => { setShowSignup(false); setShowLogin(true); }}
+          />
+        )}
+        {showInactivityWarning && (
+          <InactivityWarningModal
+            onStaySignedIn={() => {
+              resetInactivity();
+              setShowInactivityWarning(false);
+            }}
           />
         )}
       </div>
