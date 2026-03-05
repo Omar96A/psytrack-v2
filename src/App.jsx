@@ -442,20 +442,6 @@ const css = `
     50%  { background-position: 100% 50%; }
     100% { background-position: 0% 50%; }
   }
-  @keyframes orb1 {
-    0%, 100% { transform: translate(0px, 0px) scale(1); }
-    33%       { transform: translate(60px, -40px) scale(1.08); }
-    66%       { transform: translate(-30px, 50px) scale(0.95); }
-  }
-  @keyframes orb2 {
-    0%, 100% { transform: translate(0px, 0px) scale(1); }
-    33%       { transform: translate(-50px, 60px) scale(1.06); }
-    66%       { transform: translate(40px, -30px) scale(0.97); }
-  }
-  @keyframes orb3 {
-    0%, 100% { transform: translate(0px, 0px) scale(1); }
-    50%       { transform: translate(30px, 40px) scale(1.05); }
-  }
   @keyframes fadeUp {
     from { opacity: 0; transform: translateY(28px); }
     to   { opacity: 1; transform: translateY(0); }
@@ -467,36 +453,12 @@ const css = `
 
   .home-bg {
     position: fixed; inset: 0; z-index: 0;
-    background: #05080F;
+    background: radial-gradient(ellipse at 20% 50%, #0d1f40 0%, transparent 60%),
+      radial-gradient(ellipse at 80% 50%, #07271e 0%, transparent 60%),
+      radial-gradient(ellipse at 50% 80%, #0f0b30 0%, transparent 50%),
+      #05080F;
     overflow: hidden;
     contain: strict;
-  }
-  .home-orb {
-    position: absolute; border-radius: 50%; filter: blur(60px); opacity: 0.55; pointer-events: none;
-    will-change: transform; transform: translateZ(0);
-  }
-  .home-orb-1 {
-    width: 600px; height: 600px;
-    background: radial-gradient(circle, #1a3a6e 0%, #0d1f40 60%, transparent 100%);
-    top: -150px; left: -100px;
-    animation: orb1 18s ease-in-out infinite;
-  }
-  .home-orb-2 {
-    width: 700px; height: 700px;
-    background: radial-gradient(circle, #0f4a3c 0%, #07271e 60%, transparent 100%);
-    bottom: -200px; right: -150px;
-    animation: orb2 22s ease-in-out infinite;
-  }
-  .home-orb-3 {
-    width: 450px; height: 450px;
-    background: radial-gradient(circle, #1e1560 0%, #0f0b30 60%, transparent 100%);
-    top: 40%; left: 55%;
-    animation: orb3 15s ease-in-out infinite;
-  }
-  .home-noise {
-    position: absolute; inset: 0;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
-    opacity: 0.25; pointer-events: none; will-change: auto;
   }
   .home-wrap {
     position: relative; z-index: 1; min-height: 100vh;
@@ -2211,12 +2173,7 @@ function HomePage({ user, onEnterPatient, onAbout, onOpenLogin, onOpenSignup, on
 
   return (
     <>
-      <div className="home-bg">
-        <div className="home-orb home-orb-1" />
-        <div className="home-orb home-orb-2" />
-        <div className="home-orb home-orb-3" />
-        <div className="home-noise" />
-      </div>
+      <div className="home-bg" />
 
       <div className="home-wrap">
         {/* Nav */}
@@ -2300,12 +2257,7 @@ function AboutPage({ onBack }) {
 
   return (
     <>
-      <div className="home-bg">
-        <div className="home-orb home-orb-1" />
-        <div className="home-orb home-orb-2" />
-        <div className="home-orb home-orb-3" />
-        <div className="home-noise" />
-      </div>
+      <div className="home-bg" />
 
       <div className="home-wrap">
         <nav className="home-nav">
