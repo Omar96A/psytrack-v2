@@ -1745,6 +1745,7 @@ function SendAssessmentModal({ patient, onClose }) {
 // ─── CLINICIAN DASHBOARD ──────────────────────────────────────────────────────
 function ClinicianDashboard() {
   const [clinicianId, setClinicianId] = useState(null);
+  const [clinicianEmail, setClinicianEmail] = useState(null);
   const [patients, setPatients] = useState([]);
   const [selected, setSelected] = useState(null);
   const [showNew, setShowNew] = useState(false);
@@ -1755,6 +1756,7 @@ function ClinicianDashboard() {
     (async () => {
       const { data } = await supabase.auth.getUser();
       setClinicianId(data?.user?.id ?? null);
+      setClinicianEmail(data?.user?.email ?? null);
     })();
   }, []);
 
@@ -1828,6 +1830,11 @@ function ClinicianDashboard() {
                   Patient Dashboard
                 </h1>
                 <p style={{ color: "var(--muted)", fontSize: "0.875rem" }}>Longitudinal psychiatric monitoring & outcome tracking</p>
+                {clinicianEmail && (
+                  <p style={{ color: "var(--muted)", fontSize: "0.8rem", marginTop: "0.25rem", opacity: 0.85 }}>
+                    Signed in as {clinicianEmail}
+                  </p>
+                )}
               </div>
               <button className="btn btn-primary" onClick={() => setShowNew(true)} style={{ whiteSpace: "nowrap" }}>
                 + New Patient
