@@ -442,15 +442,6 @@ const css = `
     50%  { background-position: 100% 50%; }
     100% { background-position: 0% 50%; }
   }
-  @keyframes fadeUp {
-    from { opacity: 0; transform: translateY(28px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
-  @keyframes fadeIn {
-    from { opacity: 0; }
-    to   { opacity: 1; }
-  }
-
   .home-bg {
     position: fixed; inset: 0; z-index: 0;
     background: radial-gradient(ellipse at 20% 50%, #0d1f40 0%, transparent 60%),
@@ -468,7 +459,6 @@ const css = `
     display: flex; align-items: center; justify-content: space-between;
     padding: 1.5rem 3rem;
     border-bottom: 1px solid rgba(255,255,255,0.06);
-    animation: fadeIn 0.8s ease both;
   }
   .home-logo {
     font-family: var(--font-display); font-size: 1.5rem; letter-spacing: -0.5px;
@@ -491,7 +481,6 @@ const css = `
     color: #2DD4BF; border: 1px solid rgba(45,212,191,0.25);
     background: rgba(45,212,191,0.07); border-radius: 20px; padding: 0.35rem 1rem;
     margin-bottom: 2rem;
-    animation: fadeUp 0.7s ease 0.1s both;
   }
   .home-eyebrow-dot {
     width: 6px; height: 6px; border-radius: 50%; background: #2DD4BF;
@@ -504,21 +493,19 @@ const css = `
   .home-h1 {
     font-family: var(--font-display); font-size: clamp(3rem, 7vw, 5.5rem);
     line-height: 1.05; letter-spacing: -1.5px; margin-bottom: 1.5rem; color: #E6EDF3;
-    animation: fadeUp 0.7s ease 0.2s both;
   }
   .home-h1 em {
     font-style: italic;
+    padding-right: 0.05em;
     background: linear-gradient(135deg, #2DD4BF 0%, #34D399 50%, #F59E0B 100%);
     -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
   }
   .home-sub {
     font-size: 1.1rem; color: rgba(230,237,243,0.55); line-height: 1.7;
     max-width: 520px; margin: 0 auto 3rem;
-    animation: fadeUp 0.7s ease 0.3s both;
   }
   .home-actions {
     display: flex; gap: 1rem; align-items: center; justify-content: center; flex-wrap: wrap;
-    animation: fadeUp 0.7s ease 0.4s both;
   }
   .home-btn-primary {
     display: inline-flex; align-items: center; gap: 0.5rem;
@@ -548,7 +535,6 @@ const css = `
     display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px;
     max-width: 800px; width: 100%; margin: 5rem auto 0;
     border: 1px solid rgba(255,255,255,0.07); border-radius: 16px; overflow: hidden;
-    animation: fadeUp 0.7s ease 0.55s both;
     background: rgba(255,255,255,0.07);
   }
   .home-feature {
@@ -567,7 +553,6 @@ const css = `
   .home-footer {
     text-align: center; padding: 1.5rem; font-size: 0.75rem;
     color: rgba(255,255,255,0.2); border-top: 1px solid rgba(255,255,255,0.05);
-    animation: fadeIn 1s ease 0.8s both;
   }
 
   /* ABOUT PAGE (shares home background) */
@@ -647,13 +632,11 @@ const css = `
     position: fixed; inset: 0; z-index: 300;
     display: flex; align-items: center; justify-content: center; padding: 1rem;
     background: rgba(0,0,0,0.6); backdrop-filter: blur(12px);
-    animation: fadeIn 0.2s ease;
   }
   .login-modal {
     background: #0F1620; border: 1px solid rgba(255,255,255,0.1); border-radius: 20px;
     padding: 2.5rem; max-width: 420px; width: 100%;
     box-shadow: 0 32px 80px rgba(0,0,0,0.6);
-    animation: fadeUp 0.3s ease;
   }
   .login-title {
     font-family: var(--font-display); font-size: 1.6rem; color: #E6EDF3;
