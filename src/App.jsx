@@ -1917,7 +1917,7 @@ function ClinicianDashboard() {
 }
 
 // ─── LOGIN MODAL ─────────────────────────────────────────────────────────────
-function LoginModal({ onClose, onLoginSuccess }) {
+function LoginModal({ onClose, onLoginSuccess, onSwitchToSignup }) {
   const [email, setEmail] = useState("");
   const [pass, setPass] = useState("");
   const [loading, setLoading] = useState(false);
@@ -1983,13 +1983,173 @@ function LoginModal({ onClose, onLoginSuccess }) {
         >
           Cancel
         </button>
+        {onSwitchToSignup && (
+          <p style={{ marginTop: "1.25rem", textAlign: "center", fontSize: "0.85rem", color: "rgba(255,255,255,0.5)" }}>
+            Don&apos;t have an account?{" "}
+            <button type="button" onClick={onSwitchToSignup} style={{ background: "none", border: "none", color: "#2DD4BF", cursor: "pointer", textDecoration: "underline", fontFamily: "var(--font-body)", padding: 0 }}>
+              Sign up
+            </button>
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── SIGNUP MODAL ─────────────────────────────────────────────────────────────
+function SignupModal({ onClose, onSwitchToLogin }) {
+  const [fullName, setFullName] = useState("");
+  const [specialty, setSpecialty] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [passwordConfirm, setPasswordConfirm] = useState("");
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [confirmed, setConfirmed] = useState(false);
+
+  const allFilled = fullName.trim() && specialty.trim() && email.trim() && password && passwordConfirm;
+  const passwordsMatch = password === passwordConfirm;
+  const canSubmit = allFilled && passwordsMatch && termsAccepted && !loading;
+
+  const handleSubmit = async () => {
+    if (!canSubmit) return;
+    setLoading(true);
+    setError("");
+    const { error: signUpError } = await supabase.auth.signUp({
+      email: email.trim(),
+      password,
+      options: { data: { full_name: fullName.trim(), specialty: specialty.trim() } },
+    });
+    if (signUpError) {
+      setError(signUpError.message || "Unable to create account.");
+      setLoading(false);
+      return;
+    }
+    setConfirmed(true);
+    setLoading(false);
+  };
+
+  if (confirmed) {
+    return (
+      <div className="login-modal-bg" onClick={e => e.target === e.currentTarget && onClose()}>
+        <div className="login-modal">
+          <h2 className="login-title">Check your email</h2>
+          <p className="login-sub" style={{ marginBottom: "1.5rem" }}>
+            We sent a verification link to <strong style={{ color: "#E6EDF3" }}>{email}</strong>. Click the link to verify your account, then sign in.
+          </p>
+          <button
+            className="home-btn-primary"
+            style={{ width: "100%", justifyContent: "center", borderRadius: "10px" }}
+            onClick={onClose}
+          >
+            Done
+          </button>
+          {onSwitchToLogin && (
+            <p style={{ marginTop: "1.25rem", textAlign: "center", fontSize: "0.85rem", color: "rgba(255,255,255,0.5)" }}>
+              Already have an account?{" "}
+              <button type="button" onClick={onSwitchToLogin} style={{ background: "none", border: "none", color: "#2DD4BF", cursor: "pointer", textDecoration: "underline", fontFamily: "var(--font-body)", padding: 0 }}>
+                Sign in
+              </button>
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="login-modal-bg" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="login-modal" style={{ maxHeight: "90vh", overflowY: "auto" }}>
+        <h2 className="login-title">Create account</h2>
+        <p className="login-sub">Sign up for the PsyTrack clinician portal</p>
+        <input
+          className="login-input"
+          type="text"
+          placeholder="Full Name"
+          value={fullName}
+          onChange={e => setFullName(e.target.value)}
+        />
+        <input
+          className="login-input"
+          type="text"
+          placeholder="Specialty / Clinic Name"
+          value={specialty}
+          onChange={e => setSpecialty(e.target.value)}
+        />
+        <input
+          className="login-input"
+          type="email"
+          placeholder="Email address"
+          value={email}
+          onChange={e => setEmail(e.target.value)}
+        />
+        <input
+          className="login-input"
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={e => setPassword(e.target.value)}
+        />
+        <input
+          className="login-input"
+          type="password"
+          placeholder="Confirm Password"
+          value={passwordConfirm}
+          onChange={e => setPasswordConfirm(e.target.value)}
+        />
+        <label style={{ display: "flex", alignItems: "flex-start", gap: "0.5rem", marginTop: "0.75rem", cursor: "pointer", fontSize: "0.85rem", color: "rgba(255,255,255,0.7)" }}>
+          <input type="checkbox" checked={termsAccepted} onChange={e => setTermsAccepted(e.target.checked)} style={{ marginTop: "0.25rem" }} />
+          <span>I agree to the Terms of Service</span>
+        </label>
+        {error && (
+          <p style={{ color: "#FCA5A5", fontSize: "0.8rem", marginTop: "0.5rem", marginBottom: "0.25rem" }}>
+            {error}
+          </p>
+        )}
+        {allFilled && !passwordsMatch && (
+          <p style={{ color: "#FCA5A5", fontSize: "0.8rem", marginTop: "0.25rem" }}>
+            Passwords do not match.
+          </p>
+        )}
+        <button
+          className="home-btn-primary"
+          style={{ width: "100%", justifyContent: "center", marginTop: "1rem", borderRadius: "10px" }}
+          disabled={!canSubmit}
+          onClick={handleSubmit}
+        >
+          {loading ? "Creating account…" : "Create Account"}
+        </button>
+        <button
+          onClick={onClose}
+          style={{
+            width: "100%",
+            marginTop: "0.75rem",
+            background: "none",
+            border: "none",
+            color: "rgba(255,255,255,0.3)",
+            cursor: "pointer",
+            fontSize: "0.82rem",
+            fontFamily: "var(--font-body)",
+          }}
+        >
+          Cancel
+        </button>
+        {onSwitchToLogin && (
+          <p style={{ marginTop: "1.25rem", textAlign: "center", fontSize: "0.85rem", color: "rgba(255,255,255,0.5)" }}>
+            Already have an account?{" "}
+            <button type="button" onClick={onSwitchToLogin} style={{ background: "none", border: "none", color: "#2DD4BF", cursor: "pointer", textDecoration: "underline", fontFamily: "var(--font-body)", padding: 0 }}>
+              Sign in
+            </button>
+          </p>
+        )}
       </div>
     </div>
   );
 }
 
 // ─── HOME PAGE ────────────────────────────────────────────────────────────────
-function HomePage({ user, onEnterPatient, onAbout, onOpenLogin, onSignOut, onGoClinician }) {
+function HomePage({ user, onEnterPatient, onAbout, onOpenLogin, onOpenSignup, onSignOut, onGoClinician }) {
 
   const features = [
     { icon: "📊", title: "Longitudinal Tracking", desc: "Chart patient outcomes across validated assessments over time with rich visual graphs." },
@@ -2043,6 +2203,11 @@ function HomePage({ user, onEnterPatient, onAbout, onOpenLogin, onSignOut, onGoC
             <button className="home-btn-primary" onClick={onOpenLogin}>
               {user ? "Go to Dashboard →" : "Clinician Portal →"}
             </button>
+            {!user && onOpenSignup && (
+              <button className="home-btn-secondary" onClick={onOpenSignup}>
+                Create Account
+              </button>
+            )}
             <button className="home-btn-secondary" onClick={onEnterPatient}>
               Try Patient Demo
             </button>
@@ -2139,6 +2304,7 @@ export default function App() {
   const [patientSession, setPatientSession] = useState(null);
   const [user, setUser] = useState(null);
   const [showLogin, setShowLogin] = useState(false);
+  const [showSignup, setShowSignup] = useState(false);
   const [authReady, setAuthReady] = useState(false);
 
   const screenRef = useRef(screen);
@@ -2235,6 +2401,7 @@ export default function App() {
           onEnterPatient={() => setScreen("patient")}
           onAbout={() => setScreen("about")}
           onOpenLogin={openLoginOrGoClinician}
+          onOpenSignup={() => setShowSignup(true)}
           onSignOut={handleSignOut}
           onGoClinician={() => {
             homePinnedRef.current = false;
@@ -2251,6 +2418,13 @@ export default function App() {
               didAutoRouteRef.current = true;
               setScreen("clinician");
             }}
+            onSwitchToSignup={() => { setShowLogin(false); setShowSignup(true); }}
+          />
+        )}
+        {showSignup && authReady && !user && !patientSession && (
+          <SignupModal
+            onClose={() => setShowSignup(false)}
+            onSwitchToLogin={() => { setShowSignup(false); setShowLogin(true); }}
           />
         )}
       </>
@@ -2271,6 +2445,13 @@ export default function App() {
               didAutoRouteRef.current = true;
               setScreen("clinician");
             }}
+            onSwitchToSignup={() => { setShowLogin(false); setShowSignup(true); }}
+          />
+        )}
+        {showSignup && authReady && !user && !patientSession && (
+          <SignupModal
+            onClose={() => setShowSignup(false)}
+            onSwitchToLogin={() => { setShowSignup(false); setShowLogin(true); }}
           />
         )}
       </>
@@ -2340,6 +2521,13 @@ export default function App() {
               didAutoRouteRef.current = true;
               setScreen("clinician");
             }}
+            onSwitchToSignup={() => { setShowLogin(false); setShowSignup(true); }}
+          />
+        )}
+        {showSignup && authReady && !user && !patientSession && (
+          <SignupModal
+            onClose={() => setShowSignup(false)}
+            onSwitchToLogin={() => { setShowSignup(false); setShowLogin(true); }}
           />
         )}
       </div>
