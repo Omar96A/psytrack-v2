@@ -218,6 +218,7 @@ const ASSESSMENTS = { gad7: GAD7, phq9: PHQ9, assist: ASSIST, auditc: AUDITC, qi
 // ─── STYLES ──────────────────────────────────────────────────────────────────
 const css = `
   @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap');
+  /* preconnect in index.html; display=swap above for faster font render */
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   /* ── CLINICIAN THEME (default) ── */
@@ -1792,21 +1793,30 @@ function ClinicianDashboard() {
 
   const selectedPatient = patients.find(p => p.id === selected);
 
-  // Overview stats
+  // Overview stats (batched: one query for all patients)
   const [allResults, setAllResults] = useState({});
   useEffect(() => {
     (async () => {
+      if (!patients.length) {
+        setAllResults({});
+        return;
+      }
+      const patientIds = patients.map(p => p.id);
+      const { data, error } = await supabase
+        .from("results")
+        .select("data, patient_id")
+        .in("patient_id", patientIds);
       const out = {};
-      for (const p of patients) {
-        const { data, error } = await supabase
-          .from("results")
-          .select("data")
-          .eq("patient_id", p.id);
-        if (!error && data && data.length) {
-          const list = data.map(row => row.data || {}).sort(
-            (a, b) => (a.completedAt || 0) - (b.completedAt || 0)
-          );
-          out[p.id] = list[list.length - 1];
+      if (!error && data && data.length) {
+        const byPatient = {};
+        for (const row of data) {
+          const pid = row.patient_id;
+          if (!byPatient[pid]) byPatient[pid] = [];
+          byPatient[pid].push(row.data || {});
+        }
+        for (const pid of Object.keys(byPatient)) {
+          const list = byPatient[pid].sort((a, b) => (a.completedAt || 0) - (b.completedAt || 0));
+          out[pid] = list[list.length - 1];
         }
       }
       setAllResults(out);
@@ -1817,6 +1827,39 @@ function ClinicianDashboard() {
     const r = allResults[p.id];
     return r && ((r.scores?.gad7 >= 10) || (r.scores?.phq9 >= 10));
   });
+
+  if (clinicianId === null) {
+    return (
+      <div>
+        <div className="dash-header" style={{ marginBottom: "1.75rem" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "1rem", position: "relative", zIndex: 1 }}>
+            <div>
+              <div style={{ width: 220, height: 28, background: "var(--surface2)", borderRadius: 6, marginBottom: "0.5rem" }} />
+              <div style={{ width: 320, height: 16, background: "var(--surface2)", borderRadius: 4, opacity: 0.8 }} />
+            </div>
+          </div>
+        </div>
+        <div className="section-label" style={{ marginBottom: "0.75rem" }}>Overview</div>
+        <div className="grid-4" style={{ marginBottom: "2rem" }}>
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="stat-box" style={{ minHeight: 90 }}>
+              <div style={{ width: 48, height: 24, background: "var(--surface2)", borderRadius: 4, marginBottom: "0.5rem" }} />
+              <div style={{ width: 32, height: 14, background: "var(--surface2)", borderRadius: 4, opacity: 0.7 }} />
+            </div>
+          ))}
+        </div>
+        <div className="section-label" style={{ marginBottom: "0.75rem" }}>Patients</div>
+        <div className="card">
+          {[1, 2, 3].map(i => (
+            <div key={i} style={{ padding: "1rem", borderBottom: "1px solid var(--border)" }}>
+              <div style={{ width: 140, height: 18, background: "var(--surface2)", borderRadius: 4, marginBottom: "0.4rem" }} />
+              <div style={{ width: 200, height: 14, background: "var(--surface2)", borderRadius: 4, opacity: 0.7 }} />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -2350,13 +2393,22 @@ export default function App() {
   useEffect(() => {
     let mounted = true;
     (async () => {
-      const { data } = await supabase.auth.getUser();
+      const { data: sessionData } = await supabase.auth.getSession();
       if (!mounted) return;
-      const u = data?.user ?? null;
+      const u = sessionData?.session?.user ?? null;
       setUser(u);
       setAuthReady(true);
-      setShowLogin(false);
-      maybeAutoRouteToClinician(u);
+      if (u) {
+        setShowLogin(false);
+        maybeAutoRouteToClinician(u);
+      }
+      if (!u) {
+        const { data } = await supabase.auth.getUser();
+        if (!mounted) return;
+        const u2 = data?.user ?? null;
+        setUser(u2);
+        if (u2) maybeAutoRouteToClinician(u2);
+      }
     })();
 
     const {
