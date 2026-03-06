@@ -590,6 +590,18 @@ const css = `
     max-width: 760px;
     margin: 0 auto 2.25rem;
   }
+  .legal-content {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem 4rem;
+    text-align: left;
+    color: #E6EDF3;
+  }
+  .legal-content h1 { font-family: var(--font-display); font-size: 1.85rem; color: #E6EDF3; margin: 2rem 0 0.75rem; }
+  .legal-content h2 { font-size: 1.2rem; color: rgba(230,237,243,0.9); margin: 1.75rem 0 0.5rem; }
+  .legal-content p { font-size: 0.9rem; color: rgba(230,237,243,0.7); line-height: 1.7; margin-bottom: 1rem; }
+  .legal-content ul { margin: 0.5rem 0 1rem 1.25rem; color: rgba(230,237,243,0.7); font-size: 0.9rem; line-height: 1.7; }
+  .legal-content li { margin-bottom: 0.35rem; }
   .about-grid {
     width: 100%;
     max-width: 900px;
@@ -2226,7 +2238,7 @@ function InactivityWarningModal({ onStaySignedIn }) {
 }
 
 // ─── HOME PAGE ────────────────────────────────────────────────────────────────
-function HomePage({ user, onEnterPatient, onAbout, onOpenLogin, onOpenSignup, onSignOut, onGoClinician, sessionTimeoutMessage }) {
+function HomePage({ user, onEnterPatient, onAbout, onOpenPrivacy, onOpenTerms, onOpenLogin, onOpenSignup, onSignOut, onGoClinician, sessionTimeoutMessage }) {
 
   const features = [
     { icon: "📊", title: "Longitudinal Tracking", desc: "Chart patient outcomes across validated assessments over time with rich visual graphs." },
@@ -2307,8 +2319,20 @@ function HomePage({ user, onEnterPatient, onAbout, onOpenLogin, onOpenSignup, on
           </div>
         </section>
 
-        <footer className="home-footer">
+        <footer className="home-footer" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "center", gap: "0.5rem" }}>
           © 2026 PsyTrack · Built for psychiatric practice · Not a substitute for clinical judgment
+          {onOpenPrivacy && (
+            <>
+              <span style={{ opacity: 0.5 }}>·</span>
+              <button type="button" className="home-nav-link" onClick={onOpenPrivacy} style={{ padding: 0, fontSize: "inherit" }}>Privacy Policy</button>
+            </>
+          )}
+          {onOpenTerms && (
+            <>
+              <span style={{ opacity: 0.5 }}>·</span>
+              <button type="button" className="home-nav-link" onClick={onOpenTerms} style={{ padding: 0, fontSize: "inherit" }}>Terms of Service</button>
+            </>
+          )}
         </footer>
       </div>
 
@@ -2370,6 +2394,140 @@ function AboutPage({ onBack }) {
   );
 }
 
+function PrivacyPage({ onBack }) {
+  return (
+    <>
+      <div className="home-bg" />
+      <div className="home-wrap">
+        <nav className="home-nav">
+          <button className="home-logo" onClick={onBack} style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}>PsyTrack</button>
+          <div style={{ display: "flex", gap: "2rem", alignItems: "center" }}>
+            <button className="home-nav-link" onClick={onBack}>Home</button>
+          </div>
+        </nav>
+        <div className="legal-content">
+          <button className="btn btn-secondary btn-sm" onClick={onBack} style={{ marginBottom: "1.5rem" }}>← Back to home</button>
+          <h1>Privacy Policy</h1>
+          <p>Last updated: 2026. PsyTrack (&quot;we&quot;, &quot;our&quot;, or &quot;the service&quot;) is committed to protecting your privacy. This policy describes how we collect, use, and safeguard information when you use our psychiatric outcome monitoring platform.</p>
+
+          <h2>1. Information We Collect</h2>
+          <p>We collect information that you provide directly and that is generated through use of the service:</p>
+          <ul>
+            <li><strong>Account information:</strong> When clinicians sign up, we collect name, email, specialty or clinic name, and password (stored securely).</li>
+            <li><strong>Patient data:</strong> Names, email addresses, and assessment responses (e.g. GAD-7, PHQ-9, QIDS-SR, ASSIST, AUDIT-C) that clinicians and patients enter or that are linked to patient records.</li>
+            <li><strong>Usage data:</strong> Actions taken in the app (e.g. viewing patient lists, opening records, logging interventions) for audit and product improvement.</li>
+          </ul>
+
+          <h2>2. How We Use Your Information</h2>
+          <p>We use the information we collect to:</p>
+          <ul>
+            <li>Provide, maintain, and improve the PsyTrack service.</li>
+            <li>Authenticate users and enforce security (e.g. session timeouts).</li>
+            <li>Store and display patient assessments and trends to authorized clinicians.</li>
+            <li>Comply with legal obligations and protect the rights and safety of users and others.</li>
+          </ul>
+
+          <h2>3. Data Storage and Security</h2>
+          <p>Data is stored using Supabase and related infrastructure. We use industry-standard measures to protect data in transit and at rest. Clinician and patient data are associated with clinician accounts and are not shared with other clinicians.</p>
+
+          <h2>4. Sharing and Disclosure</h2>
+          <p>We do not sell your personal information. We may share data only:</p>
+          <ul>
+            <li>With your consent or at your direction.</li>
+            <li>With service providers that help us operate the service, under strict confidentiality obligations.</li>
+            <li>When required by law or to protect rights, safety, or property.</li>
+          </ul>
+
+          <h2>5. Your Rights</h2>
+          <p>Depending on your location, you may have the right to access, correct, delete, or export your personal data, or to object to or restrict certain processing. Contact us using the details below to exercise these rights.</p>
+
+          <h2>6. Cookies and Similar Technologies</h2>
+          <p>We use session and authentication-related storage (e.g. cookies or local storage) necessary for sign-in and security. We do not use third-party advertising or tracking cookies.</p>
+
+          <h2>7. Changes to This Policy</h2>
+          <p>We may update this Privacy Policy from time to time. We will post the updated policy on this page and update the &quot;Last updated&quot; date. Continued use of the service after changes constitutes acceptance of the updated policy.</p>
+
+          <h2>8. Contact Us</h2>
+          <p>For questions about this Privacy Policy or our data practices, please contact us at the address or email provided on the PsyTrack website or in the application.</p>
+        </div>
+        <footer className="home-footer">© 2026 PsyTrack · Not a substitute for clinical judgment</footer>
+      </div>
+    </>
+  );
+}
+
+function TermsPage({ onBack }) {
+  return (
+    <>
+      <div className="home-bg" />
+      <div className="home-wrap">
+        <nav className="home-nav">
+          <button className="home-logo" onClick={onBack} style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}>PsyTrack</button>
+          <div style={{ display: "flex", gap: "2rem", alignItems: "center" }}>
+            <button className="home-nav-link" onClick={onBack}>Home</button>
+          </div>
+        </nav>
+        <div className="legal-content">
+          <button className="btn btn-secondary btn-sm" onClick={onBack} style={{ marginBottom: "1.5rem" }}>← Back to home</button>
+          <h1>Terms of Service</h1>
+          <p>Last updated: 2026. By accessing or using PsyTrack (&quot;the Service&quot;), you agree to be bound by these Terms of Service. If you do not agree, do not use the Service.</p>
+
+          <h2>1. Acceptance of Terms</h2>
+          <p>By creating an account or using PsyTrack, you confirm that you have read, understood, and agree to these Terms and to our Privacy Policy. If you are using the Service on behalf of an organization, you represent that you have authority to bind that organization.</p>
+
+          <h2>2. Description of Service</h2>
+          <p>PsyTrack is a clinical outcome monitoring tool that allows clinicians to:</p>
+          <ul>
+            <li>Create and manage patient records and send assessment links.</li>
+            <li>View longitudinal assessment data (e.g. GAD-7, PHQ-9, QIDS-SR, ASSIST, AUDIT-C) and trends.</li>
+            <li>Log interventions and track patient progress over time.</li>
+          </ul>
+          <p>Patients may complete self-report assessments via links provided by their clinician. The Service is intended for use by qualified healthcare professionals and their patients in a clinical context.</p>
+
+          <h2>3. User Accounts and Responsibilities</h2>
+          <p>You are responsible for maintaining the confidentiality of your account credentials and for all activity under your account. You must:</p>
+          <ul>
+            <li>Provide accurate registration information and keep it up to date.</li>
+            <li>Use a strong password and comply with our signup and security policies.</li>
+            <li>Notify us promptly of any unauthorized access or breach of security.</li>
+          </ul>
+
+          <h2>4. Acceptable Use</h2>
+          <p>You agree not to use the Service to:</p>
+          <ul>
+            <li>Violate any applicable law, regulation, or professional standard.</li>
+            <li>Share login credentials or allow unauthorized access to patient or clinician data.</li>
+            <li>Use the Service for any purpose other than legitimate clinical or administrative use in connection with patient care.</li>
+            <li>Attempt to probe, scan, or test the vulnerability of the Service or its infrastructure.</li>
+          </ul>
+
+          <h2>5. Privacy</h2>
+          <p>Your use of the Service is also governed by our Privacy Policy. You must ensure that your use of the Service, including the collection and processing of patient data, complies with applicable privacy and health-information laws (e.g. HIPAA, GDPR, or local equivalents) and that you have appropriate consent or legal basis where required.</p>
+
+          <h2>6. Intellectual Property</h2>
+          <p>PsyTrack and its content, features, and functionality (excluding user-provided data) are owned by us or our licensors and are protected by copyright and other intellectual property laws. You may not copy, modify, or create derivative works of the Service without our prior written consent.</p>
+
+          <h2>7. Disclaimers</h2>
+          <p><strong>The Service is not a substitute for professional clinical judgment.</strong> Assessment scores and trends are tools to support decision-making; they do not constitute a diagnosis or treatment recommendation. Clinicians are solely responsible for the interpretation of data and for clinical decisions. We disclaim all warranties, express or implied, including any warranty of accuracy, reliability, or fitness for a particular purpose.</p>
+
+          <h2>8. Limitation of Liability</h2>
+          <p>To the maximum extent permitted by law, PsyTrack and its operators shall not be liable for any indirect, incidental, special, consequential, or punitive damages, or for any loss of data, revenue, or profits, arising from your use or inability to use the Service. Our total liability shall not exceed the amount you paid to us in the twelve months preceding the claim, if any.</p>
+
+          <h2>9. Termination</h2>
+          <p>We may suspend or terminate your access to the Service at any time for violation of these Terms or for any other reason. You may stop using the Service at any time. Upon termination, your right to use the Service ceases; we may retain or delete data in accordance with our Privacy Policy and applicable law.</p>
+
+          <h2>10. Changes to the Terms</h2>
+          <p>We may modify these Terms from time to time. We will post the updated Terms on this page and update the &quot;Last updated&quot; date. Your continued use of the Service after changes constitutes acceptance of the new Terms. If you do not agree, you must stop using the Service.</p>
+
+          <h2>11. Contact</h2>
+          <p>For questions about these Terms of Service, please contact us at the address or email provided on the PsyTrack website or in the application.</p>
+        </div>
+        <footer className="home-footer">© 2026 PsyTrack · Not a substitute for clinical judgment</footer>
+      </div>
+    </>
+  );
+}
+
 // ─── INACTIVITY TIMEOUT HOOK ─────────────────────────────────────────────────
 const INACTIVITY_MS = 1800000;   // 30 minutes
 const WARNING_MS = 1680000;      // 28 minutes (2 min before timeout)
@@ -2413,7 +2571,7 @@ function useInactivityTimeout(active, onTimeout, onWarning) {
 
 // ─── APP ROOT ─────────────────────────────────────────────────────────────────
 export default function App() {
-  const [screen, setScreen] = useState("home"); // "home" | "about" | "clinician" | "patient"
+  const [screen, setScreen] = useState("home"); // "home" | "about" | "privacy" | "terms" | "clinician" | "patient"
   const [patientSession, setPatientSession] = useState(null);
   const [user, setUser] = useState(null);
   const [showLogin, setShowLogin] = useState(false);
@@ -2455,7 +2613,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    document.body.style.background = (screen === "home" || screen === "about") ? "#05080F"
+    document.body.style.background = (screen === "home" || screen === "about" || screen === "privacy" || screen === "terms") ? "#05080F"
       : screen === "patient" ? "#F8FAFC" : "#0D1117";
   }, [screen]);
 
@@ -2541,6 +2699,8 @@ export default function App() {
           user={user}
           onEnterPatient={() => setScreen("patient")}
           onAbout={() => setScreen("about")}
+          onOpenPrivacy={() => setScreen("privacy")}
+          onOpenTerms={() => setScreen("terms")}
           onOpenLogin={openLoginOrGoClinician}
           onOpenSignup={() => setShowSignup(true)}
           onSignOut={handleSignOut}
@@ -2578,6 +2738,60 @@ export default function App() {
       <>
         <style>{css}</style>
         <AboutPage onBack={() => setScreen("home")} />
+        {showLogin && authReady && !user && !patientSession && (
+          <LoginModal
+            onClose={() => setShowLogin(false)}
+            onLoginSuccess={(u) => {
+              setUser(u);
+              setShowLogin(false);
+              didAutoRouteRef.current = true;
+              setScreen("clinician");
+            }}
+            onSwitchToSignup={() => { setShowLogin(false); setShowSignup(true); }}
+          />
+        )}
+        {showSignup && authReady && !user && !patientSession && (
+          <SignupModal
+            onClose={() => setShowSignup(false)}
+            onSwitchToLogin={() => { setShowSignup(false); setShowLogin(true); }}
+          />
+        )}
+      </>
+    );
+  }
+
+  if (screen === "privacy") {
+    return (
+      <>
+        <style>{css}</style>
+        <PrivacyPage onBack={() => setScreen("home")} />
+        {showLogin && authReady && !user && !patientSession && (
+          <LoginModal
+            onClose={() => setShowLogin(false)}
+            onLoginSuccess={(u) => {
+              setUser(u);
+              setShowLogin(false);
+              didAutoRouteRef.current = true;
+              setScreen("clinician");
+            }}
+            onSwitchToSignup={() => { setShowLogin(false); setShowSignup(true); }}
+          />
+        )}
+        {showSignup && authReady && !user && !patientSession && (
+          <SignupModal
+            onClose={() => setShowSignup(false)}
+            onSwitchToLogin={() => { setShowSignup(false); setShowLogin(true); }}
+          />
+        )}
+      </>
+    );
+  }
+
+  if (screen === "terms") {
+    return (
+      <>
+        <style>{css}</style>
+        <TermsPage onBack={() => setScreen("home")} />
         {showLogin && authReady && !user && !patientSession && (
           <LoginModal
             onClose={() => setShowLogin(false)}
@@ -2654,6 +2868,11 @@ export default function App() {
               : <PatientPortalDemo />
           )}
         </main>
+        <footer style={{ padding: "0.75rem 1rem", textAlign: "center", fontSize: "0.75rem", color: "var(--muted)", borderTop: "1px solid var(--border)" }}>
+          <button type="button" onClick={() => setScreen("privacy")} style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", textDecoration: "underline" }}>Privacy Policy</button>
+          <span style={{ margin: "0 0.5rem", opacity: 0.7 }}>·</span>
+          <button type="button" onClick={() => setScreen("terms")} style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", textDecoration: "underline" }}>Terms of Service</button>
+        </footer>
         {showLogin && authReady && !user && !patientSession && (
           <LoginModal
             onClose={() => setShowLogin(false)}
