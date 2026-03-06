@@ -2026,6 +2026,15 @@ function LoginModal({ onClose, onLoginSuccess, onSwitchToSignup }) {
   );
 }
 
+function validatePassword(password) {
+  return {
+    minLength: (password?.length ?? 0) >= 12,
+    uppercase: /[A-Z]/.test(password ?? ""),
+    number: /\d/.test(password ?? ""),
+    special: /[!@#$%^&]/.test(password ?? ""),
+  };
+}
+
 // ─── SIGNUP MODAL ─────────────────────────────────────────────────────────────
 function SignupModal({ onClose, onSwitchToLogin }) {
   const [fullName, setFullName] = useState("");
@@ -2038,9 +2047,18 @@ function SignupModal({ onClose, onSwitchToLogin }) {
   const [error, setError] = useState("");
   const [confirmed, setConfirmed] = useState(false);
 
+  const passwordChecks = validatePassword(password);
+  const passwordValid = Object.values(passwordChecks).every(Boolean);
   const allFilled = fullName.trim() && specialty.trim() && email.trim() && password && passwordConfirm;
   const passwordsMatch = password === passwordConfirm;
-  const canSubmit = allFilled && passwordsMatch && termsAccepted && !loading;
+  const canSubmit = allFilled && passwordsMatch && termsAccepted && passwordValid && !loading;
+
+  const PASSWORD_REQUIREMENTS = [
+    { key: "minLength", met: passwordChecks.minLength, label: "At least 12 characters" },
+    { key: "uppercase", met: passwordChecks.uppercase, label: "At least one uppercase letter" },
+    { key: "number", met: passwordChecks.number, label: "At least one number" },
+    { key: "special", met: passwordChecks.special, label: "At least one special character (!@#$%^&)" },
+  ];
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
@@ -2121,6 +2139,14 @@ function SignupModal({ onClose, onSwitchToLogin }) {
           value={password}
           onChange={e => setPassword(e.target.value)}
         />
+        <div style={{ marginTop: "0.5rem", marginBottom: "0.5rem" }}>
+          {PASSWORD_REQUIREMENTS.map(({ key, met, label }) => (
+            <div key={key} style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.8rem", color: met ? "var(--accent)" : "rgba(255,255,255,0.4)", marginBottom: "0.25rem" }}>
+              <span style={{ width: "1rem", textAlign: "center" }}>{met ? "✓" : "◦"}</span>
+              <span>{label}</span>
+            </div>
+          ))}
+        </div>
         <input
           className="login-input"
           type="password"
