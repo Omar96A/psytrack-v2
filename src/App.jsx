@@ -2321,18 +2321,10 @@ function HomePage({ user, onEnterPatient, onAbout, onOpenPrivacy, onOpenTerms, o
 
         <footer className="home-footer" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "center", gap: "0.5rem" }}>
           © 2026 PsyTrack · Built for psychiatric practice · Not a substitute for clinical judgment
-          {onOpenPrivacy && (
-            <>
-              <span style={{ opacity: 0.5 }}>·</span>
-              <button type="button" className="home-nav-link" onClick={onOpenPrivacy} style={{ padding: 0, fontSize: "inherit" }}>Privacy Policy</button>
-            </>
-          )}
-          {onOpenTerms && (
-            <>
-              <span style={{ opacity: 0.5 }}>·</span>
-              <button type="button" className="home-nav-link" onClick={onOpenTerms} style={{ padding: 0, fontSize: "inherit" }}>Terms of Service</button>
-            </>
-          )}
+          <span style={{ opacity: 0.5 }}>·</span>
+          <button type="button" className="home-nav-link" onClick={onOpenPrivacy} style={{ padding: 0, fontSize: "inherit" }}>Privacy Policy</button>
+          <span style={{ opacity: 0.5 }}>·</span>
+          <button type="button" className="home-nav-link" onClick={onOpenTerms} style={{ padding: 0, fontSize: "inherit" }}>Terms of Service</button>
         </footer>
       </div>
 
